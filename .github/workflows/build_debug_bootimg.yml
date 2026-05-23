@@ -1,0 +1,486 @@
+name: "🔧 Build Debug boot.img (Rescue Kernel)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag untuk output boot.img"
+        required: true
+        default: "v1rescue-debug"
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  ANDROID_VERSION: android15
+  KERNEL_VERSION: "6.6"
+  KSU_VERSION: ""
+
+jobs:
+  build-rescue:
+    name: "🔧 Build Rescue boot.img (KSU-Next + PStore)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Maximize Disk Space
+        run: |
+          df -h
+          sudo rm -rf \
+            /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/share/swift /usr/share/miniconda \
+            /usr/local/share/chromium /usr/local/share/powershell \
+            /usr/local/bin/aliyun /usr/local/bin/azcopy /usr/local/bin/cmake-gui
+          sudo apt-get remove -y '^dotnet-.*' '^llvm-.*' 'php.*' \
+            azure-cli google-cloud-cli google-chrome-stable firefox \
+            powershell mono-devel || true
+          sudo apt-get autoremove -y && sudo apt-get clean
+          df -h /
+
+      - name: Setup Swap (16GB)
+        run: |
+          sudo swapoff /mnt/swapfile 2>/dev/null || true
+          sudo rm -f /mnt/swapfile
+          sudo fallocate -l 16G /mnt/swapfile \
+            || sudo dd if=/dev/zero of=/mnt/swapfile bs=1M count=16384
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile && sudo swapon /mnt/swapfile
+          free -h
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git curl wget bc bison flex libssl-dev make libelf-dev \
+            python3 python3-pip python-is-python3 zip unzip cpio \
+            kmod rsync lz4 jq patch binutils libncurses-dev \
+            pkg-config ninja-build zstd aria2 p7zip-full \
+            gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+
+      - name: Install repo Tool
+        run: |
+          mkdir -p ~/bin
+          curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+          chmod a+x ~/bin/repo
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Restore Bazel Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel
+          key: gki-rescue-bazel-${{ hashFiles('patches/**', '.github/workflows/build_debug_bootimg.yml') }}
+          restore-keys: |
+            gki-rescue-bazel-
+            gki-bazel-
+
+      - name: Sync Android Common Kernel
+        run: |
+          mkdir -p kernel && cd kernel
+          repo init -u https://android.googlesource.com/kernel/manifest \
+            -b common-${ANDROID_VERSION}-${KERNEL_VERSION} --depth=1
+
+          SYNC_OK=false
+          for attempt in 1 2 3; do
+            echo "repo sync attempt $attempt/3..."
+            if repo sync -c -j$(nproc) --no-tags --no-clone-bundle --force-sync; then
+              SYNC_OK=true
+              break
+            fi
+            echo "⚠️ Sync failed, retrying in 30s..."
+            sleep 30
+          done
+          [ "$SYNC_OK" = "false" ] && echo "❌ repo sync gagal setelah 3 percobaan" && exit 1
+          cd common
+          KERNEL_COMMIT=$(git log --oneline -1)
+          echo "✅ Using tip of branch ($KERNEL_COMMIT)"
+
+      - name: Set KMI Generation
+        run: |
+          set -euo pipefail
+          cd kernel/common
+          DETECTED_KMI=""
+          if [ -f "build.config.common" ]; then
+            DETECTED_KMI=$(grep -oP '(?<=KMI_GENERATION=)\d+' build.config.common | head -n1)
+          fi
+          if [ -z "$DETECTED_KMI" ] && [ -f "build.config.gki" ]; then
+            DETECTED_KMI=$(grep -oP '(?<=KMI_GENERATION=)\d+' build.config.gki | head -n1)
+          fi
+          if [ -z "$DETECTED_KMI" ]; then
+            STAMP_FILE="../build/kernel/kleaf/impl/stamp.bzl"
+            if [ -f "$STAMP_FILE" ]; then
+              DETECTED_KMI=$(grep -oP '(?<=kmi_generation = ")\d+' "$STAMP_FILE" | head -n1)
+            fi
+          fi
+          [ -z "$DETECTED_KMI" ] && DETECTED_KMI="8"
+          echo "✅ KMI_GENERATION detected: $DETECTED_KMI"
+          echo "KMI_GENERATION=$DETECTED_KMI" >> $GITHUB_ENV
+
+          if [ -f "build.config.common" ]; then
+            if grep -q "KMI_GENERATION" build.config.common; then
+              sed -i "s/KMI_GENERATION=.*/KMI_GENERATION=${DETECTED_KMI}/" build.config.common
+            else
+              echo "KMI_GENERATION=${DETECTED_KMI}" >> build.config.common
+            fi
+          fi
+          for f in build.config.gki build.config.gki.aarch64; do
+            [ -f "$f" ] && grep -q "KMI_GENERATION" "$f" \
+              && sed -i "s/KMI_GENERATION=.*/KMI_GENERATION=${DETECTED_KMI}/" "$f"
+          done
+          STAMP_FILE="../build/kernel/kleaf/impl/stamp.bzl"
+          [ -f "$STAMP_FILE" ] && grep -q "kmi_generation" "$STAMP_FILE" \
+            && sed -i "s/kmi_generation = \"[0-9]*\"/kmi_generation = \"${DETECTED_KMI}\"/" "$STAMP_FILE" || true
+
+      - name: Setup KernelSU-Next
+        run: |
+          set -euo pipefail
+          cd kernel
+
+          echo "Cloning KernelSU-Next (full history for version calc)..."
+          git clone https://github.com/KernelSU-Next/KernelSU-Next.git -b dev KernelSU-Next
+
+          GIT_COUNT=$(cd KernelSU-Next && git rev-list --count HEAD 2>/dev/null || echo "0")
+          if [ "$GIT_COUNT" -gt 1 ]; then
+            KSU_VERSION=$((30000 + GIT_COUNT))
+          else
+            KSU_VERSION="30000"
+          fi
+          KSU_TAG=$(cd KernelSU-Next && git describe --abbrev=0 --tags 2>/dev/null || echo "v${KSU_VERSION}")
+
+          rm -rf common/drivers/kernelsu
+          cp -r KernelSU-Next/kernel common/drivers/kernelsu
+          cp -r KernelSU-Next/uapi common/drivers/kernelsu/uapi 2>/dev/null || true
+
+          find common/drivers/kernelsu -name "BUILD.bazel" -delete
+          find common/drivers/kernelsu -name "BUILD" -delete
+          sed -i '/depends on EXT4_FS/d' common/drivers/kernelsu/Kconfig
+
+          KBUILD_FILE="common/drivers/kernelsu/Kbuild"
+          if [ -f "$KBUILD_FILE" ]; then
+            sed -i '/# Injected by CI/d' "$KBUILD_FILE"
+            sed -i '/ccflags-y += -UKSU_VERSION/d' "$KBUILD_FILE"
+            python3 "$GITHUB_WORKSPACE/workflow_scripts/patch_kbuild.py" \
+              "$KBUILD_FILE" "$GIT_COUNT" "$KSU_VERSION" "$KSU_TAG"
+            printf '#undef KSU_VERSION\n#define KSU_VERSION %s\n#undef KSU_VERSION_TAG\n#define KSU_VERSION_TAG "%s"\n' \
+              "${KSU_VERSION}" "${KSU_TAG}" > common/drivers/kernelsu/ksu_version.h
+            sed -i "1i ccflags-y += -Wno-macro-redefined -include \$(srctree)/drivers/kernelsu/ksu_version.h" "$KBUILD_FILE"
+          fi
+
+          if ! grep -q 'CONFIG_KSU' common/drivers/Makefile; then
+            echo 'obj-$(CONFIG_KSU) += kernelsu/' >> common/drivers/Makefile
+          fi
+          sed -i '/drivers\/kernelsu\/Kconfig/d' common/drivers/Kconfig
+          python3 -c "with open('common/drivers/Kconfig', 'r+') as f: c = f.read(); p = c.rfind('endmenu'); f.seek(0); f.write(c[:p] + 'source \"drivers/kernelsu/Kconfig\"\n\n' + c[p:]) if p != -1 else f.write(c)"
+
+          cd common
+          git add -f drivers/Makefile drivers/Kconfig
+          git add -f drivers/kernelsu/ 2>/dev/null || true
+          cd ..
+
+          echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV
+          echo "✅ KernelSU-Next integrated (version: $KSU_VERSION, tag: $KSU_TAG)"
+
+      - name: Apply Custom Patches
+        run: |
+          cd kernel/common
+          if [ -d "$GITHUB_WORKSPACE/patches" ] && ls $GITHUB_WORKSPACE/patches/*.patch 1>/dev/null 2>&1; then
+            for patch_file in $GITHUB_WORKSPACE/patches/*.patch; do
+              echo "Applying $patch_file"
+              patch -p1 --forward --no-backup-if-mismatch < "$patch_file" \
+                || echo "  ⚠️ Patch failed or already applied (skipping)"
+            done
+          else
+            echo "No custom patches found, skipping."
+          fi
+
+      - name: Configure Kernel (Minimal Rescue)
+        run: |
+          set -euo pipefail
+          cd kernel/common
+          DEFCONFIG="arch/arm64/configs/gki_defconfig"
+
+          add_cfg() {
+            local cfg="$1"
+            sed -i "/^${cfg%%=*}=.*/d" "$DEFCONFIG"
+            echo "$cfg" >> "$DEFCONFIG"
+          }
+
+          echo "" >> "$DEFCONFIG"
+          echo "# KernelSU + Dependencies" >> "$DEFCONFIG"
+          add_cfg "CONFIG_KSU=y"
+          add_cfg "CONFIG_KPROBES=y"
+          add_cfg "CONFIG_HAVE_KPROBES=y"
+          add_cfg "CONFIG_KPROBE_EVENTS=y"
+          add_cfg "CONFIG_EXT4_FS=y"
+
+          echo "" >> "$DEFCONFIG"
+          echo "# Module Compatibility" >> "$DEFCONFIG"
+          add_cfg "CONFIG_MODULE_SIG_FORCE=n"
+          add_cfg "CONFIG_MODULE_SIG_ALL=n"
+          add_cfg "CONFIG_MODULE_SIG_PROTECT=n"
+          add_cfg "CONFIG_MODVERSIONS=y"
+
+          echo "" >> "$DEFCONFIG"
+          echo "# CPU Governor" >> "$DEFCONFIG"
+          add_cfg "CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y"
+          sed -i '/^CONFIG_CPU_FREQ_DEFAULT_GOV_/d' "$DEFCONFIG"
+          add_cfg "CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y"
+
+          # ZRAM minimal
+          echo "" >> "$DEFCONFIG"
+          echo "# ZRAM" >> "$DEFCONFIG"
+          add_cfg "CONFIG_ZSMALLOC=m"
+          add_cfg "CONFIG_ZRAM=m"
+
+          # WiFi modules
+          echo "" >> "$DEFCONFIG"
+          echo "# WiFi" >> "$DEFCONFIG"
+          add_cfg "CONFIG_CFG80211=m"
+          add_cfg "CONFIG_NL80211_TESTMODE=y"
+          add_cfg "CONFIG_CFG80211_WEXT=y"
+          add_cfg "CONFIG_MAC80211=m"
+
+          # Netfilter for Hotspot
+          echo "" >> "$DEFCONFIG"
+          echo "# Netfilter for Hotspot" >> "$DEFCONFIG"
+          add_cfg "CONFIG_NETFILTER=y"
+          add_cfg "CONFIG_NF_CONNTRACK=y"
+          add_cfg "CONFIG_NF_NAT=y"
+          add_cfg "CONFIG_NF_NAT_MASQUERADE=y"
+          add_cfg "CONFIG_IP_NF_IPTABLES=y"
+          add_cfg "CONFIG_IP_NF_NAT=y"
+          add_cfg "CONFIG_IP_NF_TARGET_MASQUERADE=y"
+
+          # Branding
+          sed -i '/CONFIG_LOCALVERSION/d' "$DEFCONFIG"
+          echo "" >> "$DEFCONFIG"
+          echo "# Branding" >> "$DEFCONFIG"
+          echo 'CONFIG_LOCALVERSION="-Epitaph-Rescue"' >> "$DEFCONFIG"
+          echo "CONFIG_LOCALVERSION_AUTO=n" >> "$DEFCONFIG"
+
+          # PStore / RAMoops — PALING PENTING
+          echo "" >> "$DEFCONFIG"
+          echo "# PStore / RAMoops Debugging (CRITICAL)" >> "$DEFCONFIG"
+          add_cfg "CONFIG_PSTORE=y"
+          add_cfg "CONFIG_PSTORE_CONSOLE=y"
+          add_cfg "CONFIG_PSTORE_PMSG=y"
+          add_cfg "CONFIG_PSTORE_RAM=y"
+          add_cfg "CONFIG_PSTORE_RAM_MEM_ADDR=0x4d010000"
+          add_cfg "CONFIG_PSTORE_RAM_SIZE=0xe0000"
+          add_cfg "CONFIG_PSTORE_RAM_CONSOLE_SIZE=0x40000"
+          add_cfg "CONFIG_PSTORE_RAM_PMSG_SIZE=0x80000"
+
+          git add arch/arm64/configs/gki_defconfig
+          echo "✅ Rescue defconfig finalized"
+
+      - name: Patch Build System
+        run: |
+          cd kernel/common
+          python3 "$GITHUB_WORKSPACE/workflow_scripts/patch_build_system.py"
+
+          git add BUILD.bazel modules.bzl 2>/dev/null || true
+          for f in build.config.gki build.config.gki.aarch64; do
+            if [ -f "$f" ]; then
+              sed -i '/check_defconfig/d' "$f"
+              sed -i '/KMI_SYMBOL_LIST_STRICT_MODE/d' "$f"
+              sed -i '/TRIM_NONLISTED_KMI/d' "$f"
+              sed -i '/KMI_SYMBOL_LIST/d' "$f"
+              echo "KMI_SYMBOL_LIST_STRICT_MODE=false" >> "$f"
+              echo "TRIM_NONLISTED_KMI=false" >> "$f"
+              git add "$f"
+            fi
+          done
+          [ -f "../build/kernel/abi/check_buildtime_symbol_protection.py" ] \
+            && perl -i -pe 's/^(\s*)return 1$/$1return 0/g' \
+              "../build/kernel/abi/check_buildtime_symbol_protection.py" \
+            || true
+          if [ -f "../build/kernel/kleaf/impl/stamp.bzl" ]; then
+            sed -i '/stable_scmversion_cmd/s/-maybe-dirty//g' \
+              ../build/kernel/kleaf/impl/stamp.bzl
+          fi
+          sed -i 's/-dirty//' scripts/setlocalversion 2>/dev/null || true
+          git add scripts/setlocalversion 2>/dev/null || true
+          : > .scmversion
+          git add .scmversion 2>/dev/null || true
+
+          cd "$GITHUB_WORKSPACE"
+          rm -rf kernel/KernelSU-Next/.git 2>/dev/null || true
+
+      - name: Build Kernel (Bazel)
+        run: |
+          set -euo pipefail
+          cd kernel
+          mkdir -p $GITHUB_WORKSPACE/dist
+
+          BUILD_OK=false
+          for attempt in 1 2 3; do
+            echo "Bazel build attempt $attempt/3..."
+            if tools/bazel run \
+              --disk_cache=/home/runner/.cache/bazel \
+              --lto=none \
+              --local_resources=memory=6144 \
+              --jobs=2 \
+              --noshow_progress \
+              --noshow_loading_progress \
+              //common:kernel_aarch64_dist -- --dist_dir=$GITHUB_WORKSPACE/dist 2>&1 | tee build.log; then
+              BUILD_OK=true
+              break
+            fi
+            echo "⚠️ Bazel build failed, retrying in 30s..."
+            sleep 30
+          done
+          if [ "$BUILD_OK" != "true" ]; then
+            echo "❌ Bazel build gagal setelah 3 percobaan"
+            exit 1
+          fi
+        env:
+          SOURCE_DATE_EPOCH: "0"
+
+      - name: Extract Build Output
+        run: |
+          set -euo pipefail
+          mkdir -p $GITHUB_WORKSPACE/dist
+          cd kernel
+          for artifact in Image Image.gz Image.lz4; do
+            if [ ! -f "$GITHUB_WORKSPACE/dist/$artifact" ]; then
+              if [ -f "bazel-bin/common/kernel_aarch64/$artifact" ]; then
+                cp -v "bazel-bin/common/kernel_aarch64/$artifact" "$GITHUB_WORKSPACE/dist/" || true
+              fi
+            fi
+          done
+          echo "📦 dist/ contents:"
+          ls -lah $GITHUB_WORKSPACE/dist/ || true
+
+      - name: Verify Build
+        run: |
+          HAS_IMAGE=false
+          for f in dist/Image dist/Image.gz dist/Image.lz4; do
+            if [ -f "$f" ]; then
+              SIZE=$(du -h "$f" 2>/dev/null | cut -f1 || echo "?")
+              echo "✅ Found: $f ($SIZE)"
+              HAS_IMAGE=true
+            fi
+          done
+          [ "$HAS_IMAGE" = "false" ] && echo "❌ No kernel image found!" && exit 1
+
+      # ─── REPACK boot.img MENGGUNAKAN magiskboot ───────────────────────
+      - name: Download Stock boot.img
+        run: |
+          echo "📥 Downloading stock boot.img from release v1kernel-helper-debugging..."
+          curl -sL -o stock_boot.img \
+            "https://github.com/${{ github.repository }}/releases/download/v1kernel-helper-debugging/boot.img"
+          ls -lh stock_boot.img
+          echo "✅ Stock boot.img downloaded ($(du -h stock_boot.img | cut -f1))"
+
+      - name: Download magiskboot
+        run: |
+          echo "📥 Downloading magiskboot..."
+          # Ambil magiskboot dari release Magisk terbaru
+          MAGISK_URL=$(curl -sL https://api.github.com/repos/topjohnwu/Magisk/releases/latest \
+            | jq -r '.assets[] | select(.name | contains("Magisk-v")) | .browser_download_url' | head -n1)
+          
+          if [ -n "$MAGISK_URL" ]; then
+            curl -sL -o magisk.apk "$MAGISK_URL"
+            unzip -o magisk.apk lib/x86_64/libmagiskboot.so -d magisk_extract
+            cp magisk_extract/lib/x86_64/libmagiskboot.so ./magiskboot
+            chmod +x ./magiskboot
+            echo "✅ magiskboot extracted from Magisk APK"
+          else
+            # Fallback: download langsung dari magiskboot standalone
+            curl -sL -o magiskboot \
+              "https://github.com/nicholaschum/magiskboot_build/releases/latest/download/magiskboot-x86_64"
+            chmod +x ./magiskboot
+            echo "✅ magiskboot downloaded (standalone)"
+          fi
+          ./magiskboot || true
+
+      - name: Repack boot.img with Custom Kernel
+        run: |
+          set -euo pipefail
+          mkdir -p repack && cd repack
+
+          # Unpack stock boot.img
+          echo "📦 Unpacking stock boot.img..."
+          cp ../stock_boot.img boot.img
+          ../magiskboot unpack boot.img
+          echo "✅ Stock boot.img unpacked"
+          ls -lah
+
+          # Pilih kernel image terbaik (prioritas: Image.gz > Image.lz4 > Image)
+          SELECTED=""
+          for img in \
+            "$GITHUB_WORKSPACE/dist/Image.gz" \
+            "$GITHUB_WORKSPACE/dist/Image.lz4" \
+            "$GITHUB_WORKSPACE/dist/Image"; do
+            if [ -f "$img" ]; then
+              SELECTED="$img"
+              echo "✅ Using kernel image: $(basename $img) ($(du -h $img | cut -f1))"
+              break
+            fi
+          done
+          [ -z "$SELECTED" ] && echo "❌ No kernel image found!" && exit 1
+
+          # Ganti kernel image
+          cp "$SELECTED" kernel
+          echo "✅ Kernel image replaced"
+
+          # Repack boot.img
+          echo "📦 Repacking boot.img..."
+          ../magiskboot repack boot.img new_boot.img
+          echo "✅ Rescue boot.img created ($(du -h new_boot.img | cut -f1))"
+          
+          cp new_boot.img "$GITHUB_WORKSPACE/dist/Epitaph-Rescue-boot.img"
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: "Epitaph-Rescue-bootimg"
+          path: |
+            dist/Epitaph-Rescue-boot.img
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "${{ inputs.release_tag }}"
+          name: "🔧 Epitaph Rescue Kernel ${{ inputs.release_tag }}"
+          body: |
+            ### 🔧 Epitaph Rescue Kernel (Debug boot.img)
+
+            **Tujuan:** Boot image cadangan yang bisa di-flash via Fastboot untuk menarik log crash (`/sys/fs/pstore/console-ramoops-0`) dari kernel eksperimental yang bootloop.
+
+            ---
+
+            #### 📋 Spesifikasi:
+            - **Type:** GKI 6.6 (Minimal — No SUSFS)
+            - **Root:** KernelSU-Next v${{ env.KSU_VERSION }}
+            - **Governor:** schedutil
+            - **Branding:** `-Epitaph-Rescue`
+            - **PStore:** ✅ Aktif (`0x4d010000`, 896KB)
+            - **WiFi:** ✅ (cfg80211/mac80211 modular)
+            - **Hotspot:** ✅ (Netfilter NAT)
+
+            ---
+
+            #### 🛠️ Cara Pakai:
+            1. Flash kernel eksperimental → HP bootloop
+            2. Tahan **Vol Down + Power** → masuk **Fastboot**
+            3. Flash rescue boot.img:
+               ```bash
+               fastboot flash boot Epitaph-Rescue-boot.img
+               fastboot reboot
+               ```
+            4. Setelah masuk Android, tarik log dari PC:
+               ```bash
+               adb pull /sys/fs/pstore/console-ramoops-0 last_kmsg.log
+               adb pull /sys/fs/pstore/dmesg-ramoops-0 panic_log.txt
+               ```
+
+            > ⚠️ **Boot image ini HANYA untuk debugging.** Gunakan build utama dari GKI Control Center untuk pemakaian sehari-hari.
+          files: dist/Epitaph-Rescue-boot.img
+          draft: false
+          prerelease: true
