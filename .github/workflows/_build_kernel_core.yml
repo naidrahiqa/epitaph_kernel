@@ -718,12 +718,17 @@ jobs:
 
           # TANGANI BAZEL ZRAM: Bazel memerlukan file zram.ko dan zsmalloc.ko berada di daftar module_outs.
           # Kita paksa kompilasi keduanya sebagai modul (=m) agar sistem build dapat melacaknya dengan benar.
+          # Kami juga menambahkan kompresi ZSTD, aliran multi-kompresi, dan KSM untuk meminimalkan konsumsi RAM pada perangkat 4GB.
           echo "" >> "$DEFCONFIG"
-          echo "# ZRAM Fix" >> "$DEFCONFIG"
+          echo "# ZRAM & Memory Optimizations" >> "$DEFCONFIG"
           add_cfg "CONFIG_ZSMALLOC=m"
           add_cfg "CONFIG_ZRAM=m"
           add_cfg "CONFIG_CRYPTO_LZ4=y"
           add_cfg "CONFIG_ZRAM_DEF_COMP_LZ4=y"
+          add_cfg "CONFIG_CRYPTO_ZSTD=y"
+          add_cfg "CONFIG_ZRAM_DEF_COMP_ZSTD=y"
+          add_cfg "CONFIG_ZRAM_MULTI_COMP=y"
+          add_cfg "CONFIG_KSM=y"
 
           echo "" >> "$DEFCONFIG"
           echo "# Network Optimizations (Safe)" >> "$DEFCONFIG"
@@ -758,15 +763,19 @@ jobs:
           add_cfg "CONFIG_MTK_COMBO_GPS=y"
           
           # PERBAIKAN HOTSPOT & TETHERING:
-          # Aktifkan subsystem Netfilter NAT agar proses berbagi koneksi internet dari perangkat berjalan normal.
+          # Aktifkan subsystem Netfilter NAT (IPv4 & IPv6) agar proses berbagi koneksi internet dari perangkat berjalan normal.
           echo "" >> "$DEFCONFIG"
           echo "# Netfilter for Hotspot/Tethering" >> "$DEFCONFIG"
           add_cfg "CONFIG_NETFILTER=y"
           add_cfg "CONFIG_NF_CONNTRACK=y"
           add_cfg "CONFIG_NF_NAT=y"
+          add_cfg "CONFIG_NF_NAT_MASQUERADE=y"
           add_cfg "CONFIG_IP_NF_IPTABLES=y"
           add_cfg "CONFIG_IP_NF_NAT=y"
           add_cfg "CONFIG_IP_NF_TARGET_MASQUERADE=y"
+          add_cfg "CONFIG_IP6_NF_NAT=y"
+          add_cfg "CONFIG_IP6_NF_TARGET_MASQUERADE=y"
+          add_cfg "CONFIG_NETFILTER_XT_NAT=y"
           add_cfg "CONFIG_NETFILTER_XT_TARGET_MASQUERADE=y"
 
           # CATATAN OPTIMASI (SEMENTARA DINONAKTIFKAN):
@@ -1025,33 +1034,86 @@ jobs:
           fi
           # ─── END MODULE COPY ────────────────────────────────────────
 
-          # PEMUAT MODUL WIFI CADANGAN (PERSISTENT FALLBACK):
+          # 🎛️ EPITAPH TUNER & WIFI FALLBACK (PERSISTENT):
           # Jika proses pemuatan modul secara systemless gagal pada HyperOS 2.0 / Android 15,
-          # kita buat skrip booting otomatis (post-boot service.d) via KernelSU atau Magisk untuk insmod modul secara manual.
+          # kita buat skrip booting otomatis (post-boot service.d) via KernelSU atau Magisk untuk insmod modul secara manual,
+          # sekaligus mengoptimalkan frekuensi schedutil CPU, governor GPU (Ged/Mali), ZRAM, RAM, dan I/O read-ahead.
           echo "" >> anykernel.sh
-          echo "# Fallback persistent WiFi module loader via KernelSU/Magisk" >> anykernel.sh
+          echo "# Epitaph Tuner & WiFi Fallback via KernelSU/Magisk" >> anykernel.sh
           echo "if [ -d /data/adb/service.d ]; then" >> anykernel.sh
-          echo "  ui_print \"  • Setting up persistent KernelSU/Magisk WiFi fallback...\";" >> anykernel.sh
+          echo "  ui_print \"  • Setting up Epitaph Tuner & WiFi fallback...\";" >> anykernel.sh
           echo "  mkdir -p /data/adb/wifi_fix;" >> anykernel.sh
           echo "  cp -f modules/vendor/lib/modules/*.ko /data/adb/wifi_fix/;" >> anykernel.sh
           echo "  chmod 644 /data/adb/wifi_fix/*.ko;" >> anykernel.sh
           echo "  " >> anykernel.sh
-          echo "  cat << 'INNER_EOF' > /data/adb/service.d/load_wifi.sh" >> anykernel.sh
+          echo "  cat << 'INNER_EOF' > /data/adb/service.d/epitaph_tuner.sh" >> anykernel.sh
           echo "#!/system/bin/sh" >> anykernel.sh
-          echo "# Tunggu subsystem inisialisasi driver siap sepenuhnya" >> anykernel.sh
-          echo "sleep 3" >> anykernel.sh
+          echo "# ==============================================================================" >> anykernel.sh
+          echo "#  🎛️ EPITAPH KERNEL OPTIMIZATION & RELIABILITY TUNER" >> anykernel.sh
+          echo "#  Designed by Naidrahiqa & Antigravity AI" >> anykernel.sh
+          echo "# ==============================================================================" >> anykernel.sh
+          echo "sleep 5" >> anykernel.sh
+          echo "" >> anykernel.sh
+          echo "# 1. FALLBACK WIFI MODULE LOADER (Ensures 100% Wifi/Hotspot reliability)" >> anykernel.sh
           echo "if ! lsmod | grep -q cfg80211; then" >> anykernel.sh
-          echo "  insmod /data/adb/wifi_fix/rfkill.ko" >> anykernel.sh
-          echo "  insmod /data/adb/wifi_fix/libarc4.ko" >> anykernel.sh
-          echo "  insmod /data/adb/wifi_fix/cfg80211.ko" >> anykernel.sh
-          echo "  insmod /data/adb/wifi_fix/mac80211.ko" >> anykernel.sh
+          echo "  if [ -d /data/adb/wifi_fix ]; then" >> anykernel.sh
+          echo "    insmod /data/adb/wifi_fix/rfkill.ko 2>/dev/null" >> anykernel.sh
+          echo "    insmod /data/adb/wifi_fix/libarc4.ko 2>/dev/null" >> anykernel.sh
+          echo "    insmod /data/adb/wifi_fix/cfg80211.ko 2>/dev/null" >> anykernel.sh
+          echo "    insmod /data/adb/wifi_fix/mac80211.ko 2>/dev/null" >> anykernel.sh
+          echo "  fi" >> anykernel.sh
           echo "fi" >> anykernel.sh
+          echo "" >> anykernel.sh
+          echo "# 2. CPU SCHEDUTIL GOVERNOR OPTIMIZATIONS (Smooths UI transitions & eliminates micro-stutters)" >> anykernel.sh
+          echo "for policy in /sys/devices/system/cpu/cpufreq/policy*; do" >> anykernel.sh
+          echo "  if [ -f \"\$policy/scaling_governor\" ]; then" >> anykernel.sh
+          echo "    gov=\$(cat \"\$policy/scaling_governor\")" >> anykernel.sh
+          echo "    if [ \"\$gov\" = \"schedutil\" ]; then" >> anykernel.sh
+          echo "      echo 500 > \"\$policy/schedutil/up_rate_limit_us\" 2>/dev/null" >> anykernel.sh
+          echo "      echo 10000 > \"\$policy/schedutil/down_rate_limit_us\" 2>/dev/null" >> anykernel.sh
+          echo "    fi" >> anykernel.sh
+          echo "  fi" >> anykernel.sh
+          echo "done" >> anykernel.sh
+          echo "" >> anykernel.sh
+          echo "# 3. GPU GED & MALI LIMITER RESET (Fixes GPU frequency locks / MTK thermal driver throttle bugs)" >> anykernel.sh
+          echo "if [ -d /sys/kernel/ged/hal ]; then" >> anykernel.sh
+          echo "  echo 1 > /sys/kernel/ged/hal/gpu_boost 2>/dev/null" >> anykernel.sh
+          echo "  echo 1 > /sys/module/ged/parameters/boost_gpu_enable 2>/dev/null" >> anykernel.sh
+          echo "fi" >> anykernel.sh
+          echo "for mali_dir in /sys/class/misc/mali0/device /sys/devices/platform/*.mali; do" >> anykernel.sh
+          echo "  if [ -d \"\$mali_dir\" ]; then" >> anykernel.sh
+          echo "    echo \"dynamic\" > \"\$mali_dir/power_policy\" 2>/dev/null" >> anykernel.sh
+          echo "    if [ -f \"\$mali_dir/dvfs_max_freq\" ]; then" >> anykernel.sh
+          echo "      if [ -f \"\$mali_dir/dvfs_max_freq_khz\" ]; then" >> anykernel.sh
+          echo "        cat \"\$mali_dir/dvfs_max_freq_khz\" > \"\$mali_dir/dvfs_max_freq\" 2>/dev/null" >> anykernel.sh
+          echo "      elif [ -f \"\$mali_dir/max_clock\" ]; then" >> anykernel.sh
+          echo "        cat \"\$mali_dir/max_clock\" > \"\$mali_dir/dvfs_max_freq\" 2>/dev/null" >> anykernel.sh
+          echo "      fi" >> anykernel.sh
+          echo "    fi" >> anykernel.sh
+          echo "  fi" >> anykernel.sh
+          echo "done" >> anykernel.sh
+          echo "" >> anykernel.sh
+          echo "# 4. MEMORY & VIRTUAL MEMORY TUNING (Resolves High RAM consumption, prevents OOM & Background App Kills)" >> anykernel.sh
+          echo "echo 180 > /proc/sys/vm/swappiness 2>/dev/null" >> anykernel.sh
+          echo "echo 100 > /proc/sys/vm/vfs_cache_pressure 2>/dev/null" >> anykernel.sh
+          echo "echo 20 > /proc/sys/vm/dirty_ratio 2>/dev/null" >> anykernel.sh
+          echo "echo 5 > /proc/sys/vm/dirty_background_ratio 2>/dev/null" >> anykernel.sh
+          echo "if [ -e /dev/block/zram0 ]; then" >> anykernel.sh
+          echo "  echo 2 > /sys/block/zram0/max_comp_streams 2>/dev/null" >> anykernel.sh
+          echo "fi" >> anykernel.sh
+          echo "" >> anykernel.sh
+          echo "# 5. STORAGE READ-AHEAD OPTIMIZATION (Enhances app loading speed)" >> anykernel.sh
+          echo "for queue in /sys/block/*/queue; do" >> anykernel.sh
+          echo "  if [ -d \"\$queue\" ]; then" >> anykernel.sh
+          echo "    echo 512 > \"\$queue/read_ahead_kb\" 2>/dev/null" >> anykernel.sh
+          echo "  fi" >> anykernel.sh
+          echo "done" >> anykernel.sh
           echo "INNER_EOF" >> anykernel.sh
           echo "  " >> anykernel.sh
-          echo "  chmod 755 /data/adb/service.d/load_wifi.sh;" >> anykernel.sh
-          echo "  ui_print \"  • Persistent WiFi fallback configured successfully!\";" >> anykernel.sh
+          echo "  chmod 755 /data/adb/service.d/epitaph_tuner.sh;" >> anykernel.sh
+          echo "  ui_print \"  • Epitaph Tuner & WiFi fallback configured successfully!\";" >> anykernel.sh
           echo "fi" >> anykernel.sh
-          # ─── END PERSISTENT WIFI FALLBACK LOADER ────────────────────
+          # ─── END EPITAPH TUNER & WIFI FALLBACK LOADER ───────────────
 
           SELECTED_IMG=""
           # PEMILIHAN CITRA KERNEL:

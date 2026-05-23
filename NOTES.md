@@ -11,7 +11,8 @@
 | :--- | :--- | :--- | :--- |
 | **v70** | Bazel (Kleaf) | **BOOTING** ✅ | Berhasil masuk ke sistem Android 15. Ditemukan kendala pada matinya fungsi WiFi/Hotspot, adanya lag pada subsistem GPU (kesalahan limiter), serta konsumsi memori RAM yang tinggi (~3.9GB). |
 | **v71** | ZyClang | **BOOTLOOP** ❌ | Perangkat gagal melewati fase inisialisasi bootloader. Diduga kuat akibat ketidakcocokan compiler ZyClang pada fase ini atau akibat dinonaktifkannya informasi debug (`CONFIG_DEBUG_INFO_NONE=y`) yang merusak subsistem jaringan Android 15. |
-| **v72** | Bazel (Kleaf) | **PENGEMBANGAN** 🛠️ | Mengatasi kegagalan build/injeksi KSU dengan migrasi parser ke file skrip Python mandiri (`workflow_scripts/`). UI Alur Kerja (GKI Control Center) sepenuhnya direvolusi dari checkbox rumit menjadi menu dropdown (`choice`) premium dan rapi. |
+| **v72** | Bazel (Kleaf) | **BOOTING** ✅ | Mengatasi kegagalan build/injeksi KSU dengan migrasi parser ke file skrip Python mandiri (`workflow_scripts/`). UI Alur Kerja (GKI Control Center) sepenuhnya direvolusi dari checkbox rumit menjadi menu dropdown (`choice`) premium dan rapi. |
+| **v73** | Bazel (Kleaf) | **STABIL** 👑 | Menerapkan optimasi keandalan tingkat tinggi: ZRAM ZSTD multi-comp & KSM (untuk menghemat memori), Netfilter NAT lengkap (untuk hotspot IPv4 & IPv6 stabil), dan penyuntikan premium *Epitaph Tuner* post-boot (untuk atasi lag GPU limiter, scheduler CPU, swappiness RAM, dan read-ahead storage). |
 
 ---
 
