@@ -17,19 +17,23 @@ Generic Kernel Image (GKI) memiliki subsistem penyimpanan log khusus bernama `ps
    fastboot reboot
    ```
 4. **Penarikan Berkas Log PStore**: Segera setelah ponsel masuk ke antarmuka Android utama, hubungkan kabel data PC, buka terminal, lalu jalankan rangkaian perintah berikut:
-   ```bash
-   # Akses cangkang shell dengan hak root penuh
-   adb shell
-   su
+   **PENTING:** Buka terminal/CMD di PC Anda (jangan masuk ke `adb shell`!), lalu jalankan salah satu dari dua metode di bawah ini secara langsung.
    
-   # Periksa ketersediaan berkas rekaman log pstore
-   ls -la /sys/fs/pstore/
-   
-   # Salin berkas log konsol dmesg terakhir ke penyimpanan internal (pilih salah satu berkas yang terisi)
-   cat /sys/fs/pstore/console-ramoops-0 > /sdcard/last_kmsg.log
-   cat /sys/fs/pstore/dmesg-ramoops-0 > /sdcard/panic_log.txt
+   **Metode A: Tarik Langsung via PC (Paling Mudah)**
+   Gunakan perintah ini di CMD PC untuk membaca log sebagai root dan menyimpannya ke PC Anda:
+   ```cmd
+   adb shell "su -c cat /sys/fs/pstore/console-ramoops-0" > last_kmsg.txt
    ```
-5. **Analisis Diagnosis**: Berkas `last_kmsg.log` berisi rekaman kronologis detik-detik krusial tepat sebelum kernel kustom Anda mengalami crash fatal.
+   *(Catatan: Jika file tersebut tidak ditemukan, ganti dengan `dmesg-ramoops-0`)*
+
+   **Metode B: Salin ke Folder Netral Dulu (Paling Aman)**
+   Jika Metode A gagal, gunakan 3 baris perintah ini di CMD PC:
+   ```cmd
+   adb shell "su -c cp /sys/fs/pstore/console-ramoops-0 /data/local/tmp/last_kmsg.txt"
+   adb shell "su -c chmod 666 /data/local/tmp/last_kmsg.txt"
+   adb pull /data/local/tmp/last_kmsg.txt
+   ```
+5. **Analisis Diagnosis**: Berkas `last_kmsg.txt` yang kini berada di komputer Anda berisi rekaman kronologis detik-detik krusial tepat sebelum kernel kustom Anda mengalami crash fatal.
 
 ---
 
@@ -37,8 +41,8 @@ Generic Kernel Image (GKI) memiliki subsistem penyimpanan log khusus bernama `ps
 Gunakan metode ini apabila perangkat **berhasil masuk ke antarmuka sistem Android utama (booting sukses)**, namun beberapa fitur penting tidak berfungsi dengan baik (seperti WiFi mati, hak akses KernelSU-Next tidak terdeteksi, atau performa melambat).
 
 ### Perintah Perekaman Log:
-Jalankan perintah berikut pada terminal PC Anda untuk merekam pesan konsol dmesg secara langsung ke dalam berkas teks lokal:
-```bash
+Jalankan perintah berikut **langsung dari terminal CMD PC Anda** (jangan masuk ke mode shell HP) untuk merekam pesan konsol dmesg secara langsung ke dalam berkas teks lokal:
+```cmd
 adb shell "su -c dmesg" > dmesg_live.log
 ```
 
