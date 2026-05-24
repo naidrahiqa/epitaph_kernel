@@ -114,13 +114,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send Start Message to Telegram
-        continue-on-error: true
         env:
           TG_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TG_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TG_BOT_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then
-            echo "Telegram secrets not set. Skipping."
+            echo "❌ Telegram secrets not set. Skipping."
             exit 0
           fi
           
@@ -136,10 +135,22 @@ jobs:
           MESSAGE=$(printf '<b>🚀 Epitaph Kernel — Build Starting</b>\n\n<b>Developer:</b> Naidrahiqa\n<b>Release Tag:</b> %s\n<b>SUSFS Variant:</b> %s\n<b>Toolchain:</b> %s\n<b>Total Builds:</b> %s\n<b>Triggered by:</b> %s\n\n<a href="%s">🔍 Monitor Build Progress on GitHub Actions</b>' \
             "${{ inputs.release_tag }}" "$VARIANTS" "${{ inputs.toolchain }}" "${{ needs.prepare.outputs.total }}" "${{ github.actor }}" "$RUN_URL")
           
-          curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+          echo "Sending to Chat ID: ${TG_CHAT_ID}"
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}\n" -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
             --form-string "chat_id=${TG_CHAT_ID}" \
             --form-string "text=${MESSAGE}" \
-            --form-string "parse_mode=HTML"
+            --form-string "parse_mode=HTML")
+          
+          echo "=== Telegram Response ==="
+          echo "$RESPONSE"
+          echo "========================="
+          
+          if echo "$RESPONSE" | grep -q "HTTP_STATUS:200"; then
+            echo "✅ Message sent successfully!"
+          else
+            echo "❌ Failed to send message!"
+            exit 1
+          fi
 
   trigger:
     needs: [prepare, notify_start]

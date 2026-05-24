@@ -245,9 +245,17 @@ jobs:
           BUILD_OK=false
           for attempt in 1 2 3; do
             echo "Bazel build attempt $attempt/3..."
-            if tools/bazel run --disk_cache=/home/runner/.cache/bazel --lto=none \
+            # Jalankan build target kernel_aarch64 (utama) terlebih dahulu
+            # Jika kompilasi utama berhasil, dist target boleh gagal saat meng-copy modul yang di-disable.
+            if tools/bazel build --disk_cache=/home/runner/.cache/bazel --lto=none \
               --local_resources=memory=6144 --jobs=2 --noshow_progress --noshow_loading_progress \
-              //common:kernel_aarch64_dist -- --dist_dir=$GITHUB_WORKSPACE/dist 2>&1 | tee build.log; then
+              //common:kernel_aarch64 2>&1 | tee build.log; then
+              
+              # Coba jalankan target dist (tidak apa-apa jika exit code non-zero, karena modul.ko minim)
+              tools/bazel run --disk_cache=/home/runner/.cache/bazel --lto=none \
+                --local_resources=memory=6144 --jobs=2 --noshow_progress --noshow_loading_progress \
+                //common:kernel_aarch64_dist -- --dist_dir=$GITHUB_WORKSPACE/dist || true
+                
               BUILD_OK=true; break
             fi
             sleep 30
@@ -258,11 +266,21 @@ jobs:
 
       - name: Extract Build Output
         run: |
-          mkdir -p $GITHUB_WORKSPACE/dist && cd kernel
+          mkdir -p $GITHUB_WORKSPACE/dist
+          cd kernel
+          echo "=== Mencari Kernel Image hasil kompilasi ==="
+          find bazel-bin/ -type f -name "Image*" -o -name "Image.gz*"
+          
+          # Salin dari lokasi Kleaf standard jika ada
           for a in Image Image.gz Image.lz4; do
-            [ ! -f "$GITHUB_WORKSPACE/dist/$a" ] && [ -f "bazel-bin/common/kernel_aarch64/$a" ] \
-              && cp -v "bazel-bin/common/kernel_aarch64/$a" "$GITHUB_WORKSPACE/dist/" || true
+            # Cari rekursif di bazel-bin jika path default kosong
+            FOUND_IMG=$(find bazel-bin/ -type f -name "$a" | head -n 1)
+            if [ -n "$FOUND_IMG" ]; then
+              cp -v "$FOUND_IMG" "$GITHUB_WORKSPACE/dist/$a"
+            fi
           done
+          
+          echo "=== Isi folder dist/ ==="
           ls -lah $GITHUB_WORKSPACE/dist/
 
       - name: Verify Build
