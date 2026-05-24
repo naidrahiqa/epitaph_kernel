@@ -7,10 +7,6 @@ on:
         description: "Release tag untuk output boot.img"
         required: true
         default: "v1rescue-debug"
-      stock_boot_url:
-        description: "URL stock boot.img (biarkan default untuk pakai dari release helper)"
-        required: false
-        default: "https://github.com/${{ github.repository }}/releases/download/v1kernel-helper-debugging/boot.img"
 
 permissions:
   contents: write
@@ -310,13 +306,8 @@ jobs:
 
       - name: Download Stock boot.img
         run: |
-          BOOT_URL="${{ inputs.stock_boot_url }}"
-          echo "📥 Downloading stock boot.img from: $BOOT_URL"
-          curl -sL -o stock_boot.img "$BOOT_URL"
-          if [ ! -f stock_boot.img ] || [ ! -s stock_boot.img ]; then
-            echo "❌ ERROR: Failed to download stock boot.img"
-            exit 1
-          fi
+          curl -sL -o stock_boot.img \
+            "https://github.com/${{ github.repository }}/releases/download/v1kernel-helper-debugging/boot.img"
           echo "✅ Stock boot.img downloaded ($(du -h stock_boot.img | cut -f1))"
 
       - name: Download magiskboot
