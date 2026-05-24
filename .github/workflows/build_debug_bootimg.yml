@@ -60,7 +60,7 @@ jobs:
             "${{ env.ANDROID_VERSION }}" \
             "${{ env.KERNEL_VERSION }}" \
             "${{ github.workspace }}" \
-            "${{ env.GITHUB_ENV }}" \
+            "$GITHUB_ENV" \
             "bazel-default" \
             "kernelsu-next" \
             "false"
