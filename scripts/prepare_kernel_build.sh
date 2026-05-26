@@ -272,9 +272,9 @@ setup_ksu() {
   cd kernel
 
   if [ "$WITH_SUSFS" = "true" ]; then
-    # Kloning fork pershoot branch next-susfs yang sudah terintegrasi SUSFS secara pre-patched
-    echo "Cloning KernelSU-Next (pershoot fork next-susfs branch)..."
-    git clone https://github.com/pershoot/KernelSU-Next -b next-susfs KernelSU-Next
+    # Kloning fork pershoot branch dev-susfs yang sudah terintegrasi SUSFS secara pre-patched
+    echo "Cloning KernelSU-Next (pershoot fork dev-susfs branch)..."
+    git clone https://github.com/pershoot/KernelSU-Next -b dev-susfs KernelSU-Next
   else
     # Kloning upstream resmi KernelSU-Next branch dev (branch default utama repo ini) untuk build murni tanpa SUSFS
     echo "Cloning KernelSU-Next (official upstream dev branch)..."

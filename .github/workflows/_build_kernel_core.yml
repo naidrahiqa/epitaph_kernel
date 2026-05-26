@@ -268,10 +268,10 @@ jobs:
             fi
           fi
 
-          # LANGKAH 4: Apply SUSFS hooks ke KernelSU-Next source (upstream dev branch)
-          # CATATAN: pershoot/KernelSU-Next branch next-susfs TIDAK lagi digunakan karena
-          # API-nya outdated (belum update ke SUSFS v2.1.0). Sekarang kita pakai upstream
-          # KernelSU-Next dev + apply 10_enable_susfs_for_ksu.patch dari simonpunk.
+          # LANGKAH 4: Konfigurasi SUSFS untuk KernelSU-Next source
+          # CATATAN: Kita menggunakan pershoot/KernelSU-Next branch dev-susfs yang sudah
+          # di-pre-patched secara mandiri oleh pershoot untuk SUSFS v2.1.0 (sangat andal dan
+          # terhindar dari signature mismatch). Patch manual 10_enable_susfs dilewati.
           KSU_KERNEL="drivers/kernelsu"
           if [ -d "$KSU_KERNEL" ] && ! grep -q "CONFIG_KSU_SUSFS" "$KSU_KERNEL/Kconfig" 2>/dev/null; then
             echo "🔧 Applying SUSFS KSU patch to upstream KernelSU-Next..."
