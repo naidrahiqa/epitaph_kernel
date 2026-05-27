@@ -102,28 +102,34 @@ else
   done
 fi
 
-# Tahap 1B: Load vendor WiFi driver (wlan_drv_gen4m.ko untuk MTK Helio G88)
+# Tahap 1B: Load vendor WiFi driver (wlan_drv_gen4m atau wlan_drv_gen4m_6768 untuk MTK Helio G88)
 WLAN_LOADED=false
-if lsmod | grep -q wlan_drv_gen4m; then
-  log_msg "Vendor WiFi driver (wlan_drv_gen4m) already loaded"
+if lsmod | grep -qE "wlan_drv_gen4m"; then
+  log_msg "Vendor WiFi driver (wlan_drv_gen4m/6768) already loaded"
   WLAN_LOADED=true
 elif [ "$CFG_LOADED" = "true" ]; then
   log_msg "Loading vendor WiFi driver..."
   for wlan_dir in \
     /vendor/lib/modules \
     /vendor_dlkm/lib/modules; do
-    if [ -f "$wlan_dir/wlan_drv_gen4m.ko" ]; then
-      try_load_module "$wlan_dir/wlan_drv_gen4m.ko"
-      if lsmod | grep -q wlan_drv_gen4m; then
-        WLAN_LOADED=true
-        log_msg "Vendor WiFi driver loaded from $wlan_dir"
-        break
+    for wlan_file in wlan_drv_gen4m_6768.ko wlan_drv_gen4m.ko; do
+      if [ -f "$wlan_dir/$wlan_file" ]; then
+        try_load_module "$wlan_dir/$wlan_file"
+        if lsmod | grep -qE "wlan_drv_gen4m"; then
+          WLAN_LOADED=true
+          log_msg "Vendor WiFi driver ($wlan_file) loaded from $wlan_dir"
+          break 2
+        fi
       fi
-    fi
+    done
   done
   # Fallback: coba modprobe jika insmod gagal
   if [ "$WLAN_LOADED" = "false" ]; then
-    log_msg "insmod gagal, mencoba modprobe wlan_drv_gen4m..."
+    log_msg "insmod gagal, mencoba modprobe wlan_drv_gen4m_6768..."
+    modprobe wlan_drv_gen4m_6768 2>/dev/null && WLAN_LOADED=true && log_msg "modprobe wlan_drv_gen4m_6768 berhasil"
+  fi
+  if [ "$WLAN_LOADED" = "false" ]; then
+    log_msg "mencoba modprobe wlan_drv_gen4m..."
     modprobe wlan_drv_gen4m 2>/dev/null && WLAN_LOADED=true && log_msg "modprobe wlan_drv_gen4m berhasil"
   fi
 fi
