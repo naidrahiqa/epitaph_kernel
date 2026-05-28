@@ -38,6 +38,7 @@ env:
   KMI_GENERATION: ""
   GIT_CHANGELOG: ""
   KSU_VERSION: ""
+  RESCUE_VER: ""
   SUSFS_OK: "false"
   ZIP_NAME: ""
   TOOLCHAIN_NAME: ""
@@ -824,8 +825,16 @@ jobs:
           zip -r9 "$GITHUB_WORKSPACE/dist/${BASE_NAME}-AnyKernel3.zip" . -x ".git*" "*.md" "LICENSE"
           echo "✅ Package created: ${BASE_NAME}-AnyKernel3.zip"
 
-      - name: Get Build Timestamp
-        run: echo "BUILD_TIME=$(TZ='Asia/Jakarta' date '+%Y-%m-%d %H:%M WIB')" >> $GITHUB_ENV
+      - name: Initialize Release Metadata
+        run: |
+          echo "BUILD_TIME=$(TZ='Asia/Jakarta' date '+%Y-%m-%d %H:%M WIB')" >> $GITHUB_ENV
+          
+          # Fetch the latest rescue tool version tag from GitHub API
+          RESCUE_TAG=$(curl -s https://api.github.com/repos/naidrahiqa/epitaph_rescue/releases/latest | grep -oP '"tag_name": "\K[^"]+' || echo "")
+          if [ -z "$RESCUE_TAG" ]; then
+            RESCUE_TAG="v0.3.0"  # Fallback default if API call fails
+          fi
+          echo "RESCUE_VER=${RESCUE_TAG}" >> $GITHUB_ENV
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -855,6 +864,12 @@ jobs:
             ${{ env.GIT_CHANGELOG }}
             ```
             For the full changelog, see [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md).
+
+            ---
+
+            ### 🔧 Emergency Recovery & Diagnostics:
+            * **Emergency Rescue Tool:** [Epitaph Rescue Tool ${{ env.RESCUE_VER }}](https://github.com/naidrahiqa/epitaph_rescue/releases/tag/${{ env.RESCUE_VER }}) - Direct download of portable recovery executable to extract RAMoops crash logs during bootloops.
+            * **Rescue boot.img:** Flash via Fastboot to recover stock boot systems and pull on-device diagnostics.
 
             ---
 
@@ -899,6 +914,7 @@ jobs:
             "$ZIP_NAME" "${{ github.run_number }}" "${{ env.KSU_VERSION }}" "$SUSFS_LABEL" \
             "${{ env.KMI_GENERATION }}" "${{ env.TOOLCHAIN_VER }}" "$ZIP_SIZE" "${{ env.BUILD_TIME }}" "$RELEASE_URL")
           CAPTION="${CAPTION}\n\n<b>📝 Changes:</b>\n$(echo "${{ env.GIT_CHANGELOG }}" | head -10)"
+          CAPTION="${CAPTION}\n\n<b>🔧 Emergency Recovery:</b> <a href=\"https://github.com/naidrahiqa/epitaph_rescue/releases/tag/${{ env.RESCUE_VER }}\">Epitaph Rescue Tool ${{ env.RESCUE_VER }}</a>"
           TG_API="https://api.telegram.org/bot${TG_BOT_TOKEN}"
           TG_LIMIT=52428800
           if [ "$ZIP_BYTES" -le "$TG_LIMIT" ]; then

@@ -17,6 +17,7 @@ env:
   KERNEL_VERSION: "6.6"
   KMI_GENERATION: "8"
   KSU_VERSION: ""
+  RESCUE_VER: ""
   RESCUE_NAME: ""
   BUILD_DATE: ""
   BUILD_TIME: ""
@@ -39,6 +40,13 @@ jobs:
           echo "BUILD_DATE=${BUILD_DATE}" >> $GITHUB_ENV
           echo "BUILD_TIME=${BUILD_TIME}" >> $GITHUB_ENV
           echo "RESCUE_NAME=${RESCUE_NAME}" >> $GITHUB_ENV
+          
+          # Fetch the latest rescue tool version tag from GitHub API
+          RESCUE_TAG=$(curl -s https://api.github.com/repos/naidrahiqa/epitaph_rescue/releases/latest | grep -oP '"tag_name": "\K[^"]+' || echo "")
+          if [ -z "$RESCUE_TAG" ]; then
+            RESCUE_TAG="v0.3.0"  # Fallback default if API call fails
+          fi
+          echo "RESCUE_VER=${RESCUE_TAG}" >> $GITHUB_ENV
 
       - name: Notify Telegram (Build Starting)
         continue-on-error: true
@@ -161,8 +169,8 @@ jobs:
       - name: Note Rescue Tool
         run: |
           echo "## 🔧 Rescue Tool" >> "$GITHUB_STEP_SUMMARY"
-          echo "If you bootloop after flashing, use **EpitaphRescue.exe**:" >> "$GITHUB_STEP_SUMMARY"
-          echo "→ https://github.com/naidrahiqa/epitaph_rescue/releases/latest" >> "$GITHUB_STEP_SUMMARY"
+          echo "If you bootloop after flashing, download the portable recovery tool **Epitaph Rescue Tool ${{ env.RESCUE_VER }}**:" >> "$GITHUB_STEP_SUMMARY"
+          echo "→ https://github.com/naidrahiqa/epitaph_rescue/releases/tag/${{ env.RESCUE_VER }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Extract Build Output
         run: |
@@ -276,6 +284,9 @@ jobs:
             - **PStore:** ✅ Active (`0x4d010000`)
             - **Built:** ${{ env.BUILD_TIME }} (run #${{ github.run_number }})
 
+            #### 🚨 Automated Recovery:
+            Instead of manual command-line execution, we recommend using the portable [Epitaph Rescue Tool ${{ env.RESCUE_VER }}](https://github.com/naidrahiqa/epitaph_rescue/releases/tag/${{ env.RESCUE_VER }}) to automatically detect connection status, restore stock boot systems safely, and pull crash logs with one click!
+
             #### 🛠️ Usage:
             ```bash
             fastboot flash boot ${{ env.RESCUE_NAME }}-boot.img
@@ -305,6 +316,7 @@ jobs:
           CAPTION=$(printf '<b>👑 Epitaph Rescue Kernel — Build Done</b>\n\n<b>Kernel:</b> %s\n<b>Version:</b> v%s\n<b>Developer:</b> Naidrahiqa\n<b>Type:</b> GKI 6.6 (Rescue / Debug)\n<b>Root:</b> KernelSU-Next v%s\n<b>Governor:</b> schedutil\n<b>Toolchain:</b> Bazel (AOSP Clang)\n<b>KMI:</b> %s\n<b>PStore:</b> ✅ Active (0x4d010000)\n<b>Size:</b> %s\n<b>Built:</b> %s\n<b>Run:</b> #%s\n\n<b>🔧 Purpose:</b> Flash via Fastboot to extract crash logs from a bootlooping kernel\n\n<a href="%s">📦 GitHub Release</a>' \
             "${RESCUE_NAME}" "${{ github.run_number }}" "${{ env.KSU_VERSION }}" "${{ env.KMI_GENERATION }}" \
             "$BOOT_SIZE" "${{ env.BUILD_TIME }}" "${{ github.run_number }}" "$RELEASE_URL")
+          CAPTION="${CAPTION}\n\n<b>🔧 Emergency Recovery:</b> <a href=\"https://github.com/naidrahiqa/epitaph_rescue/releases/tag/${{ env.RESCUE_VER }}\">Epitaph Rescue Tool ${{ env.RESCUE_VER }}</a>"
           TG_LIMIT=52428800
           if [ "$BOOT_BYTES" -le "$TG_LIMIT" ]; then
             HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${TG_API}/sendDocument" \
