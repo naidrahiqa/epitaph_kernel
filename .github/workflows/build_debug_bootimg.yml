@@ -116,7 +116,7 @@ jobs:
 
           sed -i '/CONFIG_LOCALVERSION/d' "$DEFCONFIG"
           echo "" >> "$DEFCONFIG"; echo "# Branding" >> "$DEFCONFIG"
-          echo 'CONFIG_LOCALVERSION="-Epitaph-Rescue"' >> "$DEFCONFIG"
+          echo 'CONFIG_LOCALVERSION="-Epitaph-Rescue-v${{ github.run_number }}"' >> "$DEFCONFIG"
           echo "CONFIG_LOCALVERSION_AUTO=n" >> "$DEFCONFIG"
 
           # PStore (RAMoops) — Kernel-side support only.
@@ -156,6 +156,12 @@ jobs:
           fi
         env:
           SOURCE_DATE_EPOCH: "0"
+
+      - name: Note Rescue Tool
+        run: |
+          echo "## 🔧 Rescue Tool" >> "$GITHUB_STEP_SUMMARY"
+          echo "If you bootloop after flashing, use **EpitaphRescue.exe**:" >> "$GITHUB_STEP_SUMMARY"
+          echo "→ https://github.com/naidrahiqa/epitaph_rescue/releases/latest" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Extract Build Output
         run: |

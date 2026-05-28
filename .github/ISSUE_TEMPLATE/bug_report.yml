@@ -1,0 +1,77 @@
+name: Bug Report
+description: Report a kernel issue (bootloop, WiFi, hotspot, etc.)
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before submitting:** Pull your crash log first.
+        `adb shell "su -c cat /sys/fs/pstore/console-ramoops-0" > last_kmsg.txt`
+
+  - type: input
+    id: kernel_version
+    attributes:
+      label: Kernel Version
+      description: Output of `adb shell uname -r`
+      placeholder: "6.6.xxx-Epitaph-v148"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: toolchain
+    attributes:
+      label: Toolchain
+      options:
+        - bazel-default
+        - aosp-latest
+        - zyc-latest
+        - weebx-latest
+        - neutron-latest
+    validations:
+      required: true
+
+  - type: dropdown
+    id: susfs
+    attributes:
+      label: SUSFS variant
+      options:
+        - "No SUSFS"
+        - "With SUSFS"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: issue_type
+    attributes:
+      label: Issue type
+      options:
+        - Bootloop
+        - WiFi not working
+        - Hotspot not working
+        - KernelSU not detected
+        - Performance issue
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: panel
+    attributes:
+      label: Panel variant
+      description: Output of `adb shell getprop ro.boot.lcm_name`
+      placeholder: "dsi_panel_m19a_42_03_0a_..."
+
+  - type: textarea
+    id: crash_log
+    attributes:
+      label: Crash log / dmesg
+      description: Paste relevant lines from last_kmsg.txt or dmesg
+      render: shell
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the issue clearly
+    validations:
+      required: true

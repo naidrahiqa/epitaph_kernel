@@ -689,18 +689,17 @@ jobs:
 
       - name: Generate Changelog
         run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          CHANGELOG=""
+          # Generate changelog dari git log antara tag sebelumnya dan tag saat ini
+          PREV_TAG=$(git -C kernel/common describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log --oneline ${PREV_TAG}..HEAD --no-merges 2>/dev/null | head -20)
+            GIT_CHANGELOG=$(git -C kernel/common log --oneline --no-merges \
+              ${PREV_TAG}..HEAD 2>/dev/null | head -20 \
+              | sed 's/^/- /' || echo "- No commits found")
           else
-            CHANGELOG=$(git log --oneline -20 --no-merges 2>/dev/null || echo "")
+            GIT_CHANGELOG="- Initial build"
           fi
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="No recent changes recorded."
-          fi
-          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
-          echo "$CHANGELOG" >> $GITHUB_ENV
+          echo "GIT_CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "$GIT_CHANGELOG" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       - name: Package AnyKernel3
@@ -852,8 +851,9 @@ jobs:
 
             ### 📝 Changes
             ```
-            ${{ env.CHANGELOG }}
+            ${{ env.GIT_CHANGELOG }}
             ```
+            Untuk changelog lengkap silakan lihat [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md).
 
             ---
 
@@ -897,6 +897,7 @@ jobs:
           CAPTION=$(printf '<b>👑 Epitaph Kernel — Build Done</b>\n\n<b>Kernel:</b> %s\n<b>Version:</b> v%s\n<b>Developer:</b> ${{ inputs.author_name }}\n<b>Type:</b> GKI 6.6\n<b>Root:</b> ${{ inputs.ksu_method }} v%s\n<b>Governor:</b> schedutil\n<b>SUSFS:</b> %s\n<b>KMI:</b> %s\n<b>Toolchain:</b> ${{ inputs.clang_toolchain }}\n  └ <i>%s</i>\n<b>Size:</b> %s\n<b>Built:</b> %s\n\n<a href="%s">📦 GitHub Release</a>' \
             "$ZIP_NAME" "${{ github.run_number }}" "${{ env.KSU_VERSION }}" "$SUSFS_LABEL" \
             "${{ env.KMI_GENERATION }}" "${{ env.TOOLCHAIN_VER }}" "$ZIP_SIZE" "${{ env.BUILD_TIME }}" "$RELEASE_URL")
+          CAPTION="${CAPTION}\n\n<b>📝 Changes:</b>\n$(echo "${{ env.GIT_CHANGELOG }}" | head -10)"
           TG_API="https://api.telegram.org/bot${TG_BOT_TOKEN}"
           TG_LIMIT=52428800
           if [ "$ZIP_BYTES" -le "$TG_LIMIT" ]; then

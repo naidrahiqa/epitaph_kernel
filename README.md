@@ -170,7 +170,7 @@ Bagi developer yang ingin berkontribusi atau melacak bug, berikut berkas-berkas 
 | [`scripts/prepare_kernel_build.sh`](scripts/prepare_kernel_build.sh) | Script CI/CD untuk setup dependensi, disk, sync, dan integrasi KSU. |
 | [`scripts/epitaph_tuner.sh`](scripts/epitaph_tuner.sh) | Script optimasi runtime (WiFi recovery, schedutil profile, VM swappiness). |
 | [`workflow_scripts/patch_vermagic.py`](workflow_scripts/patch_vermagic.py) | Patcher Python untuk bypass total signature vermagic & CRC modversions. |
-| [`docs/`](docs/) | Dokumentasi komprehensif (`DEBUGGING.md`, `ROADMAP.md`, dll). |
+| [`docs/`](docs/) | Dokumentasi komprehensif (`for-users/`, `for-developers/`, `ROADMAP.md`, dll). |
 
 ---
 
