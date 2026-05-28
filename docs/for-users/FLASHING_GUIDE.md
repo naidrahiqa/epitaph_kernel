@@ -1,63 +1,63 @@
-# 🚀 Panduan Flashing & Pemulihan Sistem (Redmi 12 - fire)
+# 🚀 Flashing & Emergency Recovery Guide (Redmi 12 - fire)
 > [!IMPORTANT]
-> **BACA PANDUAN INI UNTUK MENJAGA MODUL WIFI KONDUSIF DAN MENCEGAH KEPANIKAN SAAT TERJADI BOOTLOOP.**
+> **PLEASE READ THIS GUIDE CAREFULLY TO ENSURE A STABLE WIFI MODULE AND PREVENT PANIC DURING A BOOTLOOP.**
 
-Redmi 12 (*fire*) berbasis GKI 6.6 Android 15 HyperOS 2.0 memiliki arsitektur modular yang memisahkan **inti kernel (`boot.img`)** dengan **modul driver WiFi/Bluetooth (`/vendor_dlkm`)**. Dokumen ini menjelaskan prosedur flashing aman serta cara memulihkan jaringan WiFi/Hotspot yang mati akibat salah flashing.
-
----
-
-## 📂 1. Persiapan Sebelum Flashing
-Sebelum melakukan flashing kernel kustom (Epitaph), pastikan Anda telah menyiapkan berkas-berkas berikut di PC/Ponsel:
-1. **Biner Stock Boot Image (`boot.img`)**: Ekstrak dari Fastboot ROM HyperOS 2.0 resmi yang saat ini sedang aktif di perangkat Anda.
-2. **Aplikasi Kernel Flasher**: Pasang aplikasi **Kernel Flasher** atau Franco Kernel Manager (FKM) yang telah diberikan akses Root (KernelSU / Magisk).
-3. **Paket AnyKernel3 ZIP**: Berkas zip hasil kompilasi workflow Actions (misalnya `Epitaph-Kernel-v124-bazel-default.zip`).
+Redmi 12 (*fire*) GKI 6.6 builds running Android 15 HyperOS 2.0 feature a modular architecture separating the **kernel core (`boot.img`)** from the **WiFi/Bluetooth driver modules (`/vendor_dlkm`)**. This document explains the secure flashing procedures and how to restore a broken WiFi/Hotspot connection caused by flashing mismatches.
 
 ---
 
-## ⚡ 2. Prosedur Flashing Normal (Main Kernel)
-Untuk memasang kernel utama Epitaph:
-1. Unduh paket **AnyKernel3 ZIP** hasil build ke memori internal ponsel.
-2. Buka aplikasi **Kernel Flasher** (atau FKM).
-3. Pilih menu flashing, lalu arahkan ke berkas ZIP kernel Epitaph tersebut.
-4. Lakukan proses flash. AnyKernel3 akan secara otomatis:
-   * Mengganti citra kernel (`Image` / `Image.gz`) di partisi `/boot`.
-   * Menyalin berkas driver modul WiFi (`cfg80211.ko` dan `mac80211.ko`) yang cocok ke partisi `/vendor_dlkm`.
-5. Lakukan **Reboot** sistem.
+## 📂 1. Pre-Flashing Preparation
+Before installing the custom Epitaph kernel, prepare the following on your PC or phone:
+1. **Official Stock Boot Image (`boot.img`)**: Extract this from the official Fastboot ROM corresponding to the HyperOS 2.0 version currently running on your device.
+2. **Kernel Flashing App**: Install **Kernel Flasher** or Franco Kernel Manager (FKM) and grant them Root access (KernelSU / Magisk).
+3. **AnyKernel3 ZIP Package**: The compiled zip file produced by the GitHub Actions workflow (e.g., `Epitaph-Kernel-v124-bazel-default.zip`).
 
 ---
 
-## 🚨 3. Mengatasi Bootloop & Memulihkan WiFi yang Mati (CRITICAL)
+## ⚡ 2. Normal Flashing Procedure (Main Kernel)
+To install the main Epitaph kernel:
+1. Download the compiled **AnyKernel3 ZIP** package to your phone's internal storage.
+2. Open the **Kernel Flasher** (or FKM) app.
+3. Select the flashing menu, and navigate to the Epitaph ZIP package.
+4. Begin the flash process. AnyKernel3 will automatically:
+   * Replace the kernel image (`Image` or `Image.gz`) in the `/boot` partition.
+   * Copy the matching WiFi module drivers (`cfg80211.ko` and `mac80211.ko`) to the `/vendor_dlkm` partition.
+5. **Reboot** your device.
 
-### Kenapa WiFi & Hotspot Mati Pasca Flash Rescue via Fastboot?
-Ketika Anda mem-flash kernel utama yang rusak lalu bootloop, AnyKernel3 sudah terlanjur menyalin modul WiFi main kernel ke `/vendor_dlkm`.
+---
 
-Jika Anda memulihkannya secara terburu-buru dengan melakukan:
+## 🚨 3. Troubleshooting Bootloops & Restoring Dead WiFi (CRITICAL)
+
+### Why does WiFi & Hotspot break after flashing the Rescue boot.img via Fastboot?
+If you flash a broken main kernel that results in a bootloop, AnyKernel3 has already copied the main kernel's WiFi module drivers to `/vendor_dlkm`.
+
+If you immediately try to recover by running:
 `fastboot flash boot Epitaph-Rescue-boot.img`
-Anda hanya memperbarui **inti kernel**, tetapi **modul WiFi lama yang rusak/mismatch masih tertinggal di `/vendor_dlkm`**. Karena versinya tidak cocok (*symbol mismatch*), kernel penyelamat menolak memuat WiFi, sehingga WiFi/Hotspot Anda mati total (*matot*).
+You are only updating the **kernel core**, while the **old mismatched/incompatible WiFi modules are left behind in `/vendor_dlkm`**. Due to the version and symbol mismatch, the rescue kernel will refuse to load them, leading to a completely dead WiFi/Hotspot.
 
 ---
 
-### Prosedur Pemulihan WiFi & Sistem 100% Sukses:
+### 100% Successful Recovery & WiFi Restoration Procedure:
 
-Apabila perangkat Anda mengalami bootloop, ikuti langkah penyelamatan di bawah ini secara berurutan:
+If your device bootloops, follow these recovery steps in order:
 
-#### Langkah A: Kembalikan ke Stock Boot via Fastboot
-1. Masuk ke mode **Fastboot** (tekan tombol `Power + Volume Down`).
-2. Jalankan perintah berikut dari CMD PC Anda untuk mengembalikan kernel bawaan resmi:
+#### Step A: Restore Stock Boot via Fastboot
+1. Reboot the device into **Fastboot** mode (press and hold `Power + Volume Down`).
+2. Run the following command from your PC terminal to restore the official stock kernel:
    ```bash
    fastboot flash boot boot_stock.img
    fastboot reboot
    ```
-3. Ponsel Anda akan sukses booting masuk ke dalam sistem Android HyperOS bawaan dengan WiFi/Hotspot yang menyala normal kembali.
+3. Your phone will successfully boot into the stock HyperOS ROM with WiFi/Hotspot fully functional again.
 
-#### Langkah B: Bersihkan Sisa Modul Kustom (Opsional)
-Jika setelah kembali ke Stock Boot WiFi Anda masih terganggu, itu karena partisi `/vendor_dlkm` masih menyimpan modul Epitaph lama. Cara membersihkannya:
-1. Buka aplikasi **Kernel Flasher** di Android bawaan Anda.
-2. Flash ulang file **Stock Boot Image (`boot.img`)** langsung dari dalam aplikasi Kernel Flasher tersebut.
-3. Aplikasi Kernel Flasher akan secara otomatis memulihkan berkas modul asli bawaan Xiaomi ke `/vendor_dlkm` dan menghapus modul kustom yang tersisa.
+#### Step B: Clean Leftover Custom Modules (Optional)
+If your stock ROM WiFi is still not working after restoring the stock boot, it is because `/vendor_dlkm` still holds the custom Epitaph modules. To clean them:
+1. Open the **Kernel Flasher** app on your stock ROM.
+2. Flash the official **Stock Boot Image (`boot.img`)** directly from within the Kernel Flasher app.
+3. The app will automatically restore the original stock Xiaomi vendor modules back to `/vendor_dlkm` and wipe any leftover custom modules.
 
-#### Langkah C: Flash Ulang Build Baru yang Stabil
-1. Setelah WiFi dipastikan normal kembali di stock ROM, unduh paket **Epitaph ZIP** versi baru (misalnya v124 yang konfigurasinya sudah diperbaiki).
-2. Buka aplikasi **Kernel Flasher** kembali.
-3. Flash file ZIP Epitaph yang baru.
-4. Reboot, dan nikmati kernel baru dengan WiFi & Hotspot yang berfungsi 100% normal!
+#### Step C: Flash the New Stable Build
+1. Once your WiFi is confirmed working on the stock ROM, download the corrected/newer **Epitaph ZIP** build.
+2. Open the **Kernel Flasher** app.
+3. Flash the new Epitaph ZIP package.
+4. Reboot, and enjoy a stable kernel with 100% working WiFi & Hotspot!

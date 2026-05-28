@@ -111,49 +111,49 @@
 
 ## 📖 Overview
 
-**Epitaph Kernel** adalah custom kernel GKI 6.6 performa tinggi yang dirancang khusus untuk **Xiaomi Redmi 12 (fire)** yang menjalankan **Android 15 HyperOS 2.0**. Dibuat menggunakan codebase Google `common-android15-6.6` paling mutakhir untuk menghadirkan stabilitas sistem, performa gaming yang responsif, serta integrasi root kernel tingkat lanjut.
+**Epitaph Kernel** is a high-performance GKI 6.6 custom kernel engineered specifically for the **Xiaomi Redmi 12 (fire)** running **Android 15 HyperOS 2.0**. Built using Google's latest `common-android15-6.6` codebase, it delivers excellent system stability, responsive gaming performance, and advanced kernel-level root integration.
 
 ---
 
 ## ✨ Core Features
 
 ### 🔐 Root & Stealth Recovery
-* **KernelSU-Next Built-in**: Akses root tingkat kernel secara native. Aman dan tidak terdeteksi.
-* **SUSFS Support (Optional Build)**: Integrasi driver SUSFS untuk menyembunyikan status root secara maksimal dari aplikasi perbankan.
-* **Smart Vermagic & CRC Bypass**: Secara dinamis membypass proteksi `vermagic` dan pencocokan CRC (`check_version`) pada file system Android. Mengizinkan driver WiFi vendor Xiaomi bawaan ROM ter-load dengan sempurna tanpa crash!
+* **Built-in KernelSU-Next**: Access kernel-level root privileges natively. Secure, lightweight, and completely stealthy.
+* **SUSFS Support (Optional Build)**: Deep integration of the SUSFS kernel driver to safely hide root status from banking applications.
+* **Smart Vermagic & CRC Bypass**: Dynamically bypasses `vermagic` signature checks and CRC version checking (`check_version`) in the Android module loader. This allows stock Xiaomi ROM WiFi/Bluetooth vendor drivers to load flawlessly without system crashes!
 
 ### 🚀 Performance & Memory
-* **Epitaph Schedutil Governor**: Optimasi runtime governor CPU yang dinonaktifkan pembatasan rate limitnya hingga 100µs untuk UI transisi super mulus. Mendukung 3 profil instan (`performance`, `balanced`, `battery`) yang bisa diganti langsung lewat file `/data/adb/epitaph/mode`.
-* **GPU GED Boost**: Mem-bypass bug throttle termal bawaan driver MediaTek untuk menstabilkan FPS saat gaming berat.
-* **ZRAM ZSTD Multi-Stream**: Kompresi memory latar belakang multi-core yang super cepat dengan efisiensi kompresi 25% lebih hemat RAM dibanding LZ4 standard.
-* **BBR & FQ Network**: Protokol TCP Congestion Control BBR + FQ Queueing untuk latency internet/gaming online yang jauh lebih stabil dan ping minimal.
+* **Epitaph Schedutil Governor**: Optimizes the CPU governor runtime by removing the minimum rate limit restriction down to 100µs for an ultra-smooth UI. Supports 3 instant profiles (`performance`, `balanced`, `battery`) switchable on-the-fly via `/data/adb/epitaph/mode`.
+* **GPU GED Boost**: Bypasses the MediaTek thermal throttle limiters built into the stock drivers to stabilize frame rates (FPS) during intense gaming sessions.
+* **ZRAM ZSTD Multi-Stream**: Fast background memory compression utilizing parallel multi-core processing, achieving 25% better memory savings than standard LZ4.
+* **BBR & FQ Network**: Integrates the TCP BBR Congestion Control protocol and FQ Queueing for highly stable network latency, minimum ping, and a stutter-free online gaming experience.
 
 ### 📶 Connectivity & Native Fixes
-* **Systemless WiFi Fallback Loader**: Injeksi modul framework (`cfg80211`, `mac80211`) dan auto-insmod driver vendor `wlan_drv_gen4m_6768.ko` saat booting untuk mencegah bug hotspot/WiFi mati.
-* **IPv4/IPv6 Hotspot NAT**: Dukungan penuh firewall kernel untuk IP Masquerading hotspot tethering tanpa kendala.
+* **Systemless WiFi Fallback Loader**: Systemlessly packages framework network modules (`cfg80211`, `mac80211`) and triggers auto-insmod for the vendor `wlan_drv_gen4m_6768.ko` driver during boot to eliminate hotspot/WiFi failures.
+* **IPv4/IPv6 Hotspot NAT**: Full kernel firewall support for IP Masquerading to ensure flawless hotspot tethering without limitations.
 
 ---
 
 ## 📥 Quick Installation
 
-1. Pastikan Anda berada di **Android 15 (HyperOS 2.0)**.
-2. Unduh build AnyKernel3 ZIP terbaru dari tab [**Releases**](../../releases/latest).
-3. Buka aplikasi [**KernelFlasher**](https://github.com/capntrips/KernelFlasher/releases), pilih file ZIP, dan tekan **Flash**.
-4. Restart perangkat Anda. Selesai!
+1. Ensure your device is running **Android 15 (HyperOS 2.0)**.
+2. Download the latest AnyKernel3 ZIP build from the [**Releases**](../../releases/latest) tab.
+3. Open [**KernelFlasher**](https://github.com/capntrips/KernelFlasher/releases), choose the downloaded ZIP file, and click **Flash**.
+4. Restart your device. Done!
 
 ---
 
-## 🚨 Emergency Recovery (Jika Bootloop)
+## 🚨 Emergency Recovery (If Bootlooping)
 
-Jika perangkat Anda mengalami bootloop setelah flashing, jangan panik. Masuk ke mode Fastboot (`Volume Bawah + Power`) lalu jalankan perintah berikut lewat PC:
+If your device bootloops after flashing, do not panic. Enter Fastboot mode (`Volume Down + Power`) and run the following commands via your PC:
 
 ```bash
-# 1. Kembalikan to stock boot image
+# 1. Restore the official stock boot image
 fastboot flash boot boot_stock.img
 fastboot reboot
 ```
 
-Setelah HP menyala kembali secara normal, Anda bisa menarik crash log kernel sebelumnya menggunakan perintah:
+After your phone successfully boots into the stock ROM, you can extract the previous crash logs using:
 
 ```bash
 adb shell "su -c cat /sys/fs/pstore/console-ramoops-0" > last_kmsg.txt
@@ -163,14 +163,14 @@ adb shell "su -c cat /sys/fs/pstore/console-ramoops-0" > last_kmsg.txt
 
 ## 📂 Key Codebase Files
 
-Bagi developer yang ingin berkontribusi atau melacak bug, berikut berkas-berkas utama di dalam repository ini:
+For developers who wish to contribute or debug issues, these are the primary repository files:
 
-| File / Folder | Deskripsi |
+| File / Folder | Description |
 |---|---|
-| [`scripts/prepare_kernel_build.sh`](scripts/prepare_kernel_build.sh) | Script CI/CD untuk setup dependensi, disk, sync, dan integrasi KSU. |
-| [`scripts/epitaph_tuner.sh`](scripts/epitaph_tuner.sh) | Script optimasi runtime (WiFi recovery, schedutil profile, VM swappiness). |
-| [`workflow_scripts/patch_vermagic.py`](workflow_scripts/patch_vermagic.py) | Patcher Python untuk bypass total signature vermagic & CRC modversions. |
-| [`docs/`](docs/) | Dokumentasi komprehensif (`for-users/`, `for-developers/`, `ROADMAP.md`, dll). |
+| [`scripts/prepare_kernel_build.sh`](scripts/prepare_kernel_build.sh) | CI/CD script setting up dependencies, disk allocation, syncs, and KernelSU. |
+| [`scripts/epitaph_tuner.sh`](scripts/epitaph_tuner.sh) | Post-boot tuning script (WiFi recovery, schedutil profile, VM swappiness). |
+| [`workflow_scripts/patch_vermagic.py`](workflow_scripts/patch_vermagic.py) | Python patcher to bypass vermagic signatures and CRC modversions. |
+| [`docs/`](docs/) | Comprehensive documentation directory (`for-users/`, `for-developers/`, `ROADMAP.md`, etc.). |
 
 ---
 

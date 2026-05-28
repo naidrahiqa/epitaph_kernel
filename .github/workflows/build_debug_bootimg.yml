@@ -266,20 +266,20 @@ jobs:
           body: |
             ### 🔧 Epitaph Rescue Kernel (Debug boot.img)
 
-            **Tujuan:** Boot image cadangan untuk menarik log crash via Fastboot.
+            **Purpose:** Backup boot image to extract crash logs via Fastboot.
 
             - **Type:** GKI 6.6 (Minimal — No SUSFS)
             - **Root:** KernelSU-Next v${{ env.KSU_VERSION }}
             - **Toolchain:** Bazel (AOSP Clang)
             - **Branding:** `-Epitaph-Rescue`
-            - **PStore:** ✅ Aktif (`0x4d010000`)
+            - **PStore:** ✅ Active (`0x4d010000`)
             - **Built:** ${{ env.BUILD_TIME }} (run #${{ github.run_number }})
 
-            #### 🛠️ Cara Pakai:
+            #### 🛠️ Usage:
             ```bash
             fastboot flash boot ${{ env.RESCUE_NAME }}-boot.img
             fastboot reboot
-            # Setelah masuk Android:
+            # After booting into Android:
             adb pull /sys/fs/pstore/console-ramoops-0 last_kmsg.log
             ```
           files: dist/${{ env.RESCUE_NAME }}-boot.img
@@ -301,7 +301,7 @@ jobs:
           BOOT_BYTES=$(du -b "$BOOT_FILE" | cut -f1)
           RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${{ inputs.release_tag }}"
           TG_API="https://api.telegram.org/bot${TG_BOT_TOKEN}"
-          CAPTION=$(printf '<b>👑 Epitaph Rescue Kernel — Build Done</b>\n\n<b>Kernel:</b> %s\n<b>Version:</b> v%s\n<b>Developer:</b> Naidrahiqa\n<b>Type:</b> GKI 6.6 (Rescue / Debug)\n<b>Root:</b> KernelSU-Next v%s\n<b>Governor:</b> schedutil\n<b>Toolchain:</b> Bazel (AOSP Clang)\n<b>KMI:</b> %s\n<b>PStore:</b> ✅ Aktif (0x4d010000)\n<b>Size:</b> %s\n<b>Built:</b> %s\n<b>Run:</b> #%s\n\n<b>🔧 Purpose:</b> Flash via Fastboot untuk menarik crash log dari kernel yang bootloop\n\n<a href="%s">📦 GitHub Release</a>' \
+          CAPTION=$(printf '<b>👑 Epitaph Rescue Kernel — Build Done</b>\n\n<b>Kernel:</b> %s\n<b>Version:</b> v%s\n<b>Developer:</b> Naidrahiqa\n<b>Type:</b> GKI 6.6 (Rescue / Debug)\n<b>Root:</b> KernelSU-Next v%s\n<b>Governor:</b> schedutil\n<b>Toolchain:</b> Bazel (AOSP Clang)\n<b>KMI:</b> %s\n<b>PStore:</b> ✅ Active (0x4d010000)\n<b>Size:</b> %s\n<b>Built:</b> %s\n<b>Run:</b> #%s\n\n<b>🔧 Purpose:</b> Flash via Fastboot to extract crash logs from a bootlooping kernel\n\n<a href="%s">📦 GitHub Release</a>' \
             "${RESCUE_NAME}" "${{ github.run_number }}" "${{ env.KSU_VERSION }}" "${{ env.KMI_GENERATION }}" \
             "$BOOT_SIZE" "${{ env.BUILD_TIME }}" "${{ github.run_number }}" "$RELEASE_URL")
           TG_LIMIT=52428800
@@ -340,7 +340,7 @@ jobs:
           done
           [ ! -s "$ERROR_LOG" ] && printf "No build.log found.\nCheck: %s\n" "$ACTIONS_URL" > "$ERROR_LOG"
 
-          HEADER=$(printf '<b>❌ Epitaph Rescue Kernel — Build FAILED</b>\n\n<b>Kernel:</b> %s\n<b>Version:</b> v%s\n<b>Developer:</b> Naidrahiqa\n<b>Toolchain:</b> Bazel (AOSP Clang)\n<b>Root:</b> KernelSU-Next\n<b>Built:</b> %s\n<b>Triggered by:</b> %s\n\n<a href="%s">🔍 Full log di GitHub Actions</a>' \
+          HEADER=$(printf '<b>❌ Epitaph Rescue Kernel — Build FAILED</b>\n\n<b>Kernel:</b> %s\n<b>Version:</b> v%s\n<b>Developer:</b> Naidrahiqa\n<b>Toolchain:</b> Bazel (AOSP Clang)\n<b>Root:</b> KernelSU-Next\n<b>Built:</b> %s\n<b>Triggered by:</b> %s\n\n<a href="%s">🔍 Full log on GitHub Actions</a>' \
             "${RESCUE_NAME}" "${{ github.run_number }}" "${{ env.BUILD_TIME }}" "${{ github.actor }}" "$ACTIONS_URL")
           curl -s -X POST "${TG_API}/sendMessage" \
             --form-string "chat_id=${TG_ERROR_CHAT_ID}" --form-string "text=${HEADER}" --form-string "parse_mode=HTML"

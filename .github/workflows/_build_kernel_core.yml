@@ -853,25 +853,25 @@ jobs:
             ```
             ${{ env.GIT_CHANGELOG }}
             ```
-            Untuk changelog lengkap silakan lihat [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md).
+            For the full changelog, see [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md).
 
             ---
 
-            ### 🚀 Fitur Unggulan:
-            * **📶 WiFi & Hotspot 100% Stabil:** Subsystem Netfilter NAT lengkap (IPv4/IPv6) + driver kustom `cfg80211` & `mac80211` terintegrasi secara modular dengan auto-loader fallback.
-            * **🎛️ Epitaph Tuner Post-Boot:** Optimalisasi scheduler CPU schedutil, bypass limiter termal GPU MediaTek, ZRAM swappiness 180, dan read-ahead storage 512KB untuk performa gaming lancar jaya bebas lag!
-            * **🐏 Memori Maksimal (Anti-OOM):** ZRAM ZSTD dengan kompresi multi-core paralel + Kernel Samepage Merging (KSM) untuk menghemat RAM hingga 1GB+ pada varian HP 4GB.
-            * **🔋 Baterai Efisien:** Pengaturan batas waktu transisi frekuensi CPU untuk UI super mulus tanpa mengorbankan daya tahan baterai.
+            ### 🚀 Key Features:
+            * **📶 100% Stable WiFi & Hotspot:** Complete Netfilter NAT subsystem (IPv4/IPv6) + custom `cfg80211` & `mac80211` modular drivers with auto-loader fallback.
+            * **🎛️ Epitaph Tuner Post-Boot:** Schedutil CPU governor optimization, MediaTek GPU thermal throttle bypass, ZRAM swappiness set to 180, and 512KB storage read-ahead for a smooth, lag-free gaming experience!
+            * **🐏 Maximum Memory (Anti-OOM):** ZRAM ZSTD with parallel multi-core compression + Kernel Samepage Merging (KSM) to save up to 1GB+ RAM on 4GB variants.
+            * **🔋 Efficient Battery:** CPU frequency transition rate limit adjustments for an ultra-smooth UI without compromising battery life.
 
             ---
 
-            > ⚠️ **Wajib flash vbmeta dulu sebelum install kernel ini!**
+            > ⚠️ **You must flash vbmeta before installing this kernel!**
             > ```
             > fastboot --disable-verity --disable-verification flash vbmeta vbmeta.img
             > fastboot --disable-verity --disable-verification flash vbmeta_system vbmeta_system.img
             > fastboot --disable-verity --disable-verification flash vbmeta_vendor vbmeta_vendor.img
             > ```
-            > Ambil file `.img` dari ROM HyperOS 2 Fastboot yang sesuai versi lo.
+            > Extract the `.img` files from your matching HyperOS 2 Fastboot ROM.
           files: dist/*.zip
           draft: false
           prerelease: false
