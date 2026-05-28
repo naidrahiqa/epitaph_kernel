@@ -138,8 +138,7 @@ graph TD
 * [x] Implement smart dynamic I/O scheduler switching: switch to low-latency rules automatically when foreground gaming is active.
 
 ### 📱 Sprint 8 — Reverse-Engineering Display Panel Drivers (LCM Variant Expansion)
-* [ ] Keep track of MediaTek MT6768/MT6769 kernel source leaks across similar devices in the community.
-* [ ] Port reverse-engineered display driver hooks to Epitaph to bring LCM panel support to **LC0C/LC0D** variants.
+* [~] **N/A (Obsolete on GKI 6.6)**: GKI-compliant Android 15 HyperOS 2.0 uses modular loading. Display drivers (`LCM LC0C/LC0D`) are managed dynamically via Xiaomi vendor modules (`/vendor_dlkm/lib/modules/`) and DTBO overlays, eliminating the need for monolithic static kernel porting that was mandatory on legacy 4.19 kernels.
 
 ### 🧪 Sprint 9 — Compiler Flags & Kleaf Optimization Matrix
 * [ ] Transition from `--lto=none` to safe **ThinLTO** to reduce kernel binary footprints and speed up execution.
