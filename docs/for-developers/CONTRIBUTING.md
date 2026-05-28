@@ -33,7 +33,7 @@ Use the issue template. Include:
 2. Toolchain used
 3. SUSFS variant (yes/no)
 4. Crash log from PStore: `adb shell "su -c cat /sys/fs/pstore/console-ramoops-0"`
-5. Tuner log: `adb shell "cat /data/adb/epitaph/tuner.log"`
+5. Tuner log: `adb shell "cat /data/local/tmp/epitaph_tuner.log"`
 
 ## Submitting a PR
 

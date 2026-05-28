@@ -360,11 +360,11 @@ write_value 0 /sys/module/wakeup/parameters/enable_wakeup_log
 # ──────────────────────────────────────────────────────────────────────────────
 # 5. ZRAM & VIRTUAL MEMORY TUNING
 # ──────────────────────────────────────────────────────────────────────────────
-# Konfigurasi: ZRAM 6GB, compressor lzo-rle, swappiness dinamis, dirty ratio 20
+# Konfigurasi: ZRAM 6GB, compressor zstd, swappiness dinamis, dirty ratio 20
 log_msg "Section 5: Tuning ZRAM & Virtual Memory..."
 
 ZRAM_TARGET_SIZE=6442450944  # 6GB dalam Bytes
-ZRAM_COMPRESSOR="lzo-rle"
+ZRAM_COMPRESSOR="zstd"
 
 # Cek kondisi ZRAM saat ini agar tidak melakukan write lambat jika sudah sesuai
 CURR_SIZE=$(cat /sys/block/zram0/disksize 2>/dev/null || echo "0")
@@ -375,14 +375,14 @@ if [ "$CURR_SIZE" != "$ZRAM_TARGET_SIZE" ] || [ "$CURR_COMP" != "$ZRAM_COMPRESSO
   swapoff /dev/block/zram0 2>/dev/null || true
   write_value 1 /sys/block/zram0/reset
   
-  # Set kompresor lzo-rle
+  # Set kompresor zstd
   if grep -q "$ZRAM_COMPRESSOR" /sys/block/zram0/comp_algorithm 2>/dev/null; then
     write_value "$ZRAM_COMPRESSOR" /sys/block/zram0/comp_algorithm
     log_msg "ZRAM compressor set ke $ZRAM_COMPRESSOR"
   else
-    # Fallback ke lz4 jika lzo-rle tidak ada di kernel compile config
+    # Fallback ke lz4 jika zstd tidak ada di kernel compile config
     write_value "lz4" /sys/block/zram0/comp_algorithm
-    log_msg "ZRAM compressor lzo-rle tidak didukung, menggunakan lz4"
+    log_msg "ZRAM compressor zstd tidak didukung, menggunakan lz4"
   fi
   
   write_value "$ZRAM_TARGET_SIZE" /sys/block/zram0/disksize
@@ -446,7 +446,7 @@ for queue in /sys/block/*/queue; do
     write_value 0 "$queue/rotational"           # Pastikan disk dikenali sebagai flash non-rotasional
     write_value 0 "$queue/iostats"              # Matikan pelacakan statistik I/O untuk mengurangi beban CPU
     write_value 2 "$queue/rq_affinity"          # Kembalikan I/O yang selesai ke CPU yang meminta (cache hit)
-    write_value 2 "$queue/nomerges"             # Hindari overhead penggabungan blok I/O yang lambat
+    write_value 1 "$queue/nomerges"             # Nonaktifkan penggabungan I/O kompleks, izinkan trivial merges untuk efisiensi eMMC 5.1
 
     # 2. Pemilihan Penjadwal I/O Dinamis untuk Mengurangi Stutter
     if [ -f "$queue/scheduler" ]; then
@@ -496,21 +496,16 @@ log_msg "Section 7: Menerapkan optimasi TCP sysctl..."
 write_value "bbr" /proc/sys/net/ipv4/tcp_congestion_control && log_msg "TCP congestion control set to BBR"
 write_value "fq" /proc/sys/net/core/default_qdisc && log_msg "Default qdisc set to FQ"
 write_value 3 /proc/sys/net/ipv4/tcp_fastopen && log_msg "TCP Fast Open set to 3"
-write_value 1 /proc/sys/net/ipv4/tcp_slow_start_after_idle && log_msg "TCP slow start after idle dinonaktifkan (1)"
+write_value 0 /proc/sys/net/ipv4/tcp_slow_start_after_idle && log_msg "TCP slow start after idle dinonaktifkan (0)"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 8. HELIO G88 HETEROGENEOUS CPU/GPU EAS OPTIMIZATIONS
 # ──────────────────────────────────────────────────────────────────────────────
 log_msg "Section 8: Menerapkan cpuset locking & optimasi EAS Helio G88..."
 
-# Menghindari intervensi background processes pada big cores (6-7) untuk baterai awet
-write_value "0-5" /dev/cpuset/background/cpus
-write_value "0-5" /dev/cpuset/system-background/cpus
-write_value "0-5" /dev/cpuset/restricted/cpus
-
-# Menjamin foreground dan aplikasi utama (top-app) mendapat alokasi core optimal (0-7)
-write_value "0-7" /dev/cpuset/top-app/cpus
-write_value "0-7" /dev/cpuset/foreground/cpus
+# Optimasi cpuset dinamis berdasarkan profil daya aktif
+CPUSET_BG="0-5"
+CPUSET_RESTRICTED="0-5"
 
 # Optimasi parameter penjadwal berdasarkan profil daya aktif
 LATENCY_NS=16000000
@@ -519,27 +514,43 @@ WAKEUP_GRAN_NS=4000000
 
 case "$MODE" in
   performance)
+    CPUSET_BG="0-7"          # Izinkan background services memakai seluruh core untuk menghilangkan bottleneck game berat
+    CPUSET_RESTRICTED="0-7"
     LATENCY_NS=10000000      # 10ms untuk responsivitas tinggi (menghilangkan micro-stutter)
     MIN_GRAN_NS=1500000      # 1.5ms
     WAKEUP_GRAN_NS=2000000   # 2.0ms
     ;;
   battery)
+    CPUSET_BG="0-5"          # Batasi background processes ke little cores untuk hemat baterai
+    CPUSET_RESTRICTED="0-5"
     LATENCY_NS=24000000      # 24ms untuk meminimalkan siklus bangun CPU (menghemat baterai)
     MIN_GRAN_NS=4000000      # 4.0ms
     WAKEUP_GRAN_NS=6000000   # 6.0ms
     ;;
   balanced|*)
+    CPUSET_BG="0-5"          # Keseimbangan optimal untuk penggunaan sehari-hari
+    CPUSET_RESTRICTED="0-5"
     LATENCY_NS=16000000      # 16ms untuk penggunaan sehari-hari
     MIN_GRAN_NS=3000000      # 3.0ms
     WAKEUP_GRAN_NS=4000000   # 4.0ms
     ;;
 esac
 
+# Terapkan cpuset yang telah ditentukan secara dinamis
+write_value "$CPUSET_BG" /dev/cpuset/background/cpus
+write_value "$CPUSET_BG" /dev/cpuset/system-background/cpus
+write_value "$CPUSET_RESTRICTED" /dev/cpuset/restricted/cpus
+
+# Menjamin foreground dan aplikasi utama (top-app) mendapat alokasi core optimal (0-7)
+write_value "0-7" /dev/cpuset/top-app/cpus
+write_value "0-7" /dev/cpuset/foreground/cpus
+
+# Terapkan parameter scheduler EAS
 write_value "$LATENCY_NS" /proc/sys/kernel/sched_latency_ns
 write_value "$MIN_GRAN_NS" /proc/sys/kernel/sched_min_granularity_ns
 write_value "$WAKEUP_GRAN_NS" /proc/sys/kernel/sched_wakeup_granularity_ns
 
-log_msg "EAS scheduler parameters applied: latency=$LATENCY_NS ns, min_granularity=$MIN_GRAN_NS ns"
+log_msg "EAS scheduler parameters applied: latency=$LATENCY_NS ns, min_granularity=$MIN_GRAN_NS ns, cpuset_bg=$CPUSET_BG"
 
 # Tulis status akhir untuk dibaca user/KSU
 echo "active_profile: $MODE" > "$STATUS_FILE"

@@ -33,9 +33,9 @@
 ---
 
 ## 3. Kebijakan Link-Time Optimization (LTO)
-* **Aturan Utama**: Gunakan opsi `--lto=none` saat menjalankan kompilasi melalui sistem Bazel.
-* **Rasionalisasi**: Meskipun pengoptimalan LTO tingkat lanjut (`--lto=full`) mampu menghasilkan kompresi biner kernel yang lebih efisien, kompilasi tersebut membutuhkan konsumsi RAM yang sangat besar. Mesin virtual runner pada GitHub Actions dibatasi hanya memiliki memori sebesar **7GB RAM**, yang dipastikan akan mengalami kegagalan **OOM (Out Of Memory)** apabila memproses LTO secara penuh. Sementara itu, opsi `--lto=thin` memiliki riwayat ketidakcocokan pada beberapa versi Kleaf lama.
-* **Implementasi**: Opsi kompilasi terbaik yang terbukti aman dan stabil adalah menerapkan bendera `--lto=none` dalam workflow kompilasi Bazel Anda.
+* **Aturan Utama**: Gunakan opsi `--lto=thin` saat menjalankan kompilasi melalui sistem Bazel.
+* **Rasionalisasi**: Pengoptimalan LTO tingkat lanjut (`--lto=full`) mampu menghasilkan kompresi biner kernel yang lebih efisien, namun kompilasi tersebut membutuhkan konsumsi RAM yang sangat besar dan dipastikan akan mengalami kegagalan **OOM (Out Of Memory)** pada runner GitHub Actions (7GB RAM). Penggunaan opsi `--lto=thin` (ThinLTO) menawarkan kompromi terbaik dengan memberikan kompresi performa tingkat tinggi namun dengan konsumsi memori yang jauh lebih rendah, sehingga aman dan stabil untuk dijalankan di lingkungan runner terbatas.
+* **Implementasi**: Opsi kompilasi terbaik yang terbukti aman dan stabil adalah menerapkan bendera `--lto=thin` dalam workflow kompilasi Bazel Anda dengan pembatasan memori `--local_resources=memory=6144` dan pembatasan thread paralel `--jobs=2`.
 
 ---
 

@@ -145,6 +145,49 @@ int security_compute_av_user_with_policy(struct selinux_state *state,
     else:
         print("ℹ️ No modifications needed — services.c is already correct.")
 
+    # ──────────────────────────────────────────────────────────────
+    # STEP 4: Patch security/selinux/selinuxfs.c to inject weak definitions 
+    #         for missing KernelSU-Next SELinux hide symbols.
+    # ──────────────────────────────────────────────────────────────
+    selinuxfs_paths = [
+        "kernel/common/security/selinux/selinuxfs.c",
+        "common/security/selinux/selinuxfs.c",
+        "security/selinux/selinuxfs.c"
+    ]
+    
+    fs_filepath = None
+    for p in selinuxfs_paths:
+        if os.path.exists(p):
+            fs_filepath = p
+            break
+            
+    if fs_filepath:
+        print(f"🔍 Found selinuxfs.c at: {fs_filepath}")
+        with open(fs_filepath, "r") as f:
+            fs_content = f.read()
+            
+        if "weak" not in fs_content:
+            print("🔧 Injecting weak symbol definitions into selinuxfs.c...")
+            weak_defs = """
+/* Injected by Epitaph Build Script to resolve missing KernelSU-Next SELinux hide symbols */
+#if IS_ENABLED(CONFIG_KSU)
+#include <linux/types.h>
+#include <linux/jump_label.h>
+__attribute__((weak)) bool ksu_selinux_hide_enabled = false;
+__attribute__((weak)) int fake_status = 0;
+__attribute__((weak)) void initialize_fake_status(void) {}
+__attribute__((weak)) struct static_key_false fake_status_initialize_key = STATIC_KEY_FALSE_INIT;
+#endif
+"""
+            fs_content += weak_defs
+            with open(fs_filepath, "w") as f:
+                f.write(fs_content)
+            print("✅ Successfully injected weak KernelSU-Next symbols into selinuxfs.c!")
+        else:
+            print("ℹ️ selinuxfs.c already contains weak symbol definitions or doesn't reference them.")
+    else:
+        print("⚠️ Warning: security/selinux/selinuxfs.c not found!")
+
     # Clean up any SELinux-related .rej files so they don't fail the build integrity check
     dirpath = os.path.dirname(filepath)
     for root, dirs, files in os.walk(dirpath):
@@ -159,3 +202,4 @@ int security_compute_av_user_with_policy(struct selinux_state *state,
 
 if __name__ == "__main__":
     main()
+

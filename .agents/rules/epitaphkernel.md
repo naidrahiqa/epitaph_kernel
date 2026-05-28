@@ -29,7 +29,7 @@ trigger: always_on
 3. Never enable MTK built-in WiFi (`CONFIG_MTK_COMBO_WIFI=y`) — instant bootloop
 4. `CONFIG_ZSMALLOC=m` and `CONFIG_ZRAM=m` must stay as modules — Bazel tracks them
 5. `CONFIG_KPROBES=y` + `CONFIG_HAVE_KPROBES=y` + `CONFIG_KPROBE_EVENTS=y` — always on, required by KSU
-6. `--lto=none` always in Bazel — runner only has 7GB RAM
+6. `--lto=thin` always in Bazel — ThinLTO is proven stable under GKI 6.6 with 6GB limits
 7. `--local_resources=memory=6144` in Bazel — never `--local_ram_resources` (deprecated)
 8. AnyKernel3 `supported.versions=15` only — GKI 6.6 incompatible with Android 14
 9. Never lock kernel to old commits — always tip of branch `common-android15-6.6`

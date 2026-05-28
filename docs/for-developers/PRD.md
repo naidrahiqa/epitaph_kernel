@@ -168,7 +168,7 @@ Absolute constraints that must never be broken by any developer (human or AI).
 | `CONFIG_MODVERSIONS` | ✅ MUST BE `=y` | Ensures Xiaomi proprietary modules load successfully |
 
 ### 6.2 Compilation Pipelines
-- Always use `--lto=none` in Bazel to prevent Out-Of-Memory errors on restricted runners.
+- Always use `--lto=thin` in Bazel to enable Link-Time Optimization while respecting memory limits.
 - Set `--local_resources=memory=6144` (never use deprecated `--local_ram_resources`).
 - Limit parallel compilation steps to `--jobs=2`.
 - Target the top of `common-android15-6.6` branch rather than pinning older commits.
@@ -178,8 +178,7 @@ Absolute constraints that must never be broken by any developer (human or AI).
 
 ### 6.3 AnyKernel3 Rules
 - `supported.versions=15` only — GKI 6.6 is incompatible with Android 14.
-- Image priority: `Image.gz` → `Image.lz4` → `Image` — MTK bootloader often rejects raw `Image`.
-- `cfg80211.ko` and `mac80211.ko` must be packaged in the ZIP.
+- Kernel image priority: Image.gz → Image.lz4 → Image (MediaTek boot compatibility).
 
 ### 6.4 Recovery Rules
 - No custom recovery (TWRP/OrangeFox) exists — never suggest it.
@@ -189,17 +188,17 @@ Absolute constraints that must never be broken by any developer (human or AI).
 
 ---
 
-## 7. Diagnosis & Debugging Guide
+## 7. Troubleshooting & Recovery
 
-### 7.1 Decision Tree Bootloop
-
+### 7.1 Fastboot Recovery Flow
 ```
-Phone bootloops after flashing Epitaph
-│
-├── Reboots immediately to Fastboot?
-│   └── Flash stock boot → boot Android → pull last_kmsg.txt
-│       └── Search for: "Kernel panic", "Call Trace", "init: Service killed"
-│
+Bootloop / Crash (GKI)
+ ├── No Custom Recovery (TWRP/OrangeFox) available!
+ └── Flash stock boot image via Fastboot:
+     ├── fastboot flash boot boot.img
+     ├── Flash stock boot → boot Android → pull last_kmsg.txt
+     └── Search for: "Kernel panic", "Call Trace", "init: Service killed"
+ 
 ├── Stuck on logo (infinite loop)?
 │   └── Likely cause: display panel driver (LC0C/LC0D) or KSU init crash.
 │
@@ -231,6 +230,9 @@ adb shell "su -c cat /sys/fs/pstore/dmesg-ramoops-0" > last_kmsg.txt
 | v129 | Identify root cause of SUSFS failures | Pinpointed incorrect KSU branch, untracked sandbox files, and false validation flags |
 | v148 | Release body & Telegram notifications refactored | Replaced static notes with dynamic Git auto-changelogs and recovery tool reminders |
 | v148 | KMI Environment Sanitization | Added static defaults to KMI variables in workflow setups to silence parser issues |
+| v149 | Optimize Energy Aware Scheduling (EAS) | Implemented custom CPU uclamp boosting and task placement profiles per governor |
+| v150 | Calibrate I/O VM Settings | Configured eMMC 5.1 block rules, mq-deadline I/O scheduler tuning, and low-latency VM limits |
+| v151 | ThinLTO and ARMv8.2-A optimizations | Enabled ThinLTO for maximum binary compression and injected Cortex-A75 specific compiler targets |
 
 ---
 
@@ -253,7 +255,7 @@ Epitaph-{Toolchain}-kernelsu-next[-SUSFS]-{DDMMYYYY}-AnyKernel3.zip
 ```bash
 echo "performance" > /data/adb/epitaph/mode
 sh /data/adb/epitaph/apply
-cat /data/adb/epitaph/tuner.log  # Verify status
+cat /data/local/tmp/epitaph_tuner.log  # Verify status
 ```
 
 ---

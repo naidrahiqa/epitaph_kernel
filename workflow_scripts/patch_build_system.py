@@ -183,8 +183,10 @@ def main():
             print("✅ Berhasil menonaktifkan -Werror di Makefile!")
         
         # Suntikkan optimasi arsitektur spesifik ARMv8.2-A Cortex-A75/A55 untuk Helio G88 (MT6769)
+        # CATATAN: Ini hanya berdampak pada custom make-based toolchains (seperti ZyClang/Neutron standalone).
+        # Bazel/Kleaf tidak terpengaruh karena menggunakan file konfigurasinya sendiri untuk menyetel flags compiler.
         if "march=armv8.2-a" not in makefile_content:
-            arch_flags = "\n# Helio G88 (MT6769) Cortex-A75/A55 specific optimizations\n"
+            arch_flags = "\n# Helio G88 (MT6769) Cortex-A75/A55 specific optimizations (make-based standalone toolchains only)\n"
             arch_flags += "KBUILD_CFLAGS += -march=armv8.2-a+fp+simd -mtune=cortex-a75\n"
             makefile_content += arch_flags
             print("✅ Berhasil menyuntikkan optimasi Cortex-A75/A55 di Makefile!")

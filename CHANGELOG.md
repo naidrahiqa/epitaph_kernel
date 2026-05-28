@@ -13,7 +13,7 @@ Format: [vX.Y] — YYYY-MM-DD
 
 ### Added
 - Epitaph Schedutil Performance: 3-profile runtime tuner (performance/balanced/battery)
-- epitaph_tuner.sh v2.0: full logging to /data/adb/epitaph/tuner.log
+- epitaph_tuner.sh v2.0: full logging to /data/local/tmp/epitaph_tuner.log
 - WiFi fallback loader: auto-insmod if systemless loading fails
 
 ### Changed
