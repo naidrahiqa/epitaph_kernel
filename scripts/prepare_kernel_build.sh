@@ -451,6 +451,7 @@ patch_build_system() {
   python3 "$GITHUB_WORKSPACE/workflow_scripts/patch_build_system.py"
   python3 "$GITHUB_WORKSPACE/workflow_scripts/patch_vermagic.py"
   python3 "$GITHUB_WORKSPACE/workflow_scripts/patch_schedutil.py"
+  python3 "$GITHUB_WORKSPACE/workflow_scripts/patch_governors.py"
 
   git add BUILD.bazel modules.bzl 2>/dev/null || true
   # CRITICAL: Lacak semua berkas yang dimodifikasi oleh skrip Python patching agar
@@ -459,6 +460,11 @@ patch_build_system() {
   # vermagic mismatch — penyebab utama WiFi + Hotspot mati total.
   git add kernel/module/internal.h kernel/module/main.c kernel/module.c kernel/module/version.c 2>/dev/null || true
   git add kernel/sched/cpufreq_schedutil.c 2>/dev/null || true
+  # Lacak berkas sumber governor Epitaph agar terdeteksi oleh Bazel Kleaf sandbox
+  git add kernel/sched/cpufreq_epitaph_common.h kernel/sched/cpufreq_epitaph.c \
+    kernel/sched/cpufreq_epitaph_perf.c kernel/sched/cpufreq_epitaph_save.c \
+    kernel/sched/epitaph_input.h kernel/sched/epitaph_input.c 2>/dev/null || true
+  git add drivers/cpufreq/Kconfig 2>/dev/null || true
   for f in build.config.gki build.config.gki.aarch64; do
     if [ -f "$f" ]; then
       sed -i '/check_defconfig/d' "$f"
