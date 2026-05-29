@@ -11,19 +11,19 @@
 #ifndef _CPUFREQ_EPITAPH_COMMON_H
 #define _CPUFREQ_EPITAPH_COMMON_H
 
-#include "sched.h"
-
 #include <linux/cpufreq.h>
 #include <linux/hrtimer.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <linux/sched/cpufreq.h>
+#include <linux/sched/types.h>
 #include <linux/irq_work.h>
 #include <linux/tick.h>
 #include <linux/units.h>
 #include <trace/events/power.h>
 
+#include "sched.h"
 #include "epitaph_input.h"
 
 /* ── Thermal Handoff Telemetry (shared from epitaph_input.c) ────────── */
@@ -234,10 +234,8 @@ static void EP(_get_util)(struct EP(_cpu) *epc)
 	unsigned long util = cpu_util_cfs_boost(epc->cpu);
 	unsigned long max = arch_scale_cpu_capacity(epc->cpu);
 
-	epc->bw_min = effective_cpu_util(epc->cpu, util, &max,
-					 ENERGY_UTIL, NULL);
-	epc->util = effective_cpu_util(epc->cpu, util, &max,
-				       FREQUENCY_UTIL, NULL);
+	epc->bw_min = effective_cpu_util(epc->cpu, util, NULL, &max);
+	epc->util = effective_cpu_util(epc->cpu, util, &max, NULL);
 	epc->max = max;
 }
 
@@ -397,7 +395,7 @@ static void EP(_update_shared)(struct update_util_data *hook, u64 time,
 
 	ep->need_freq_update = false;
 
-	if (cpufreq_driver_is_slow_switch(ep->policy))
+	if (!ep->policy->fast_switch_enabled)
 		EP(_deferred_update)(ep);
 	else
 		EP(_fast_switch)(ep, time, next_f);
@@ -619,14 +617,14 @@ static struct EP(_tunables) *EP(_tunables_alloc)(struct EP(_policy) *ep)
 	return tunables;
 }
 
+static void *global_tunables;
+
 static void EP(_tunables_free)(struct EP(_tunables) *tunables)
 {
 	if (!have_governor_per_policy())
 		global_tunables = NULL;
 	kfree(tunables);
 }
-
-static void *global_tunables;
 
 static int EP(_init)(struct cpufreq_policy *policy)
 {
@@ -782,7 +780,16 @@ static struct cpufreq_governor EP(_governor) = {
 	.limits = EP(_limits),
 };
 
-cpufreq_governor_init(EP(_governor));
-cpufreq_governor_exit(EP(_governor));
+static int __init EP(_register)(void)
+{
+	return cpufreq_register_governor(&EP(_governor));
+}
+fs_initcall(EP(_register));
+
+static void __exit EP(_unregister)(void)
+{
+	cpufreq_unregister_governor(&EP(_governor));
+}
+module_exit(EP(_unregister));
 
 #endif /* _CPUFREQ_EPITAPH_COMMON_H */
