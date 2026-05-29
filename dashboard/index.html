@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Epitaph Kernel Stats Dashboard</title>
+    <!-- Premium Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #060713;
+            --card-bg: rgba(13, 16, 37, 0.45);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --primary: #8a2be2;
+            --primary-glow: rgba(138, 43, 226, 0.4);
+            --success: #00f5a0;
+            --success-glow: rgba(0, 245, 160, 0.3);
+            --warning: #ffd000;
+            --warning-glow: rgba(255, 208, 0, 0.3);
+            --danger: #ff0055;
+            --danger-glow: rgba(255, 0, 85, 0.3);
+            --text-main: #f5f5fa;
+            --text-muted: #8e94b7;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(138, 43, 226, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(0, 245, 160, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Header Style */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 1.5rem 2rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-glow {
+            width: 12px;
+            height: 12px;
+            background-color: var(--success);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 1.8rem;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #8a2be2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .device-badge {
+            background: rgba(138, 43, 226, 0.15);
+            border: 1px solid var(--primary);
+            color: #d1b3ff;
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        /* Status Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        /* Card Style */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 1.8rem;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 40px 0 rgba(0, 0, 0, 0.2);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            opacity: 0.5;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(138, 43, 226, 0.3);
+            box-shadow: 0 15px 45px 0 rgba(138, 43, 226, 0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+        }
+
+        /* Indicators and stats */
+        .stat-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: baseline;
+            gap: 0.4rem;
+        }
+
+        .stat-unit {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 400;
+        }
+
+        .stat-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Status Badge colors */
+        .badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .badge-green {
+            background: rgba(0, 245, 160, 0.15);
+            border: 1px solid var(--success);
+            color: var(--success);
+            box-shadow: 0 0 15px var(--success-glow);
+        }
+
+        .badge-yellow {
+            background: rgba(255, 208, 0, 0.15);
+            border: 1px solid var(--warning);
+            color: var(--warning);
+            box-shadow: 0 0 15px var(--warning-glow);
+        }
+
+        .badge-red {
+            background: rgba(255, 0, 85, 0.15);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+            box-shadow: 0 0 15px var(--danger-glow);
+        }
+
+        /* CPU Clusters Freq meters */
+        .cluster-area {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .cluster-bar-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .cluster-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .cluster-bar-bg {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .cluster-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--success));
+            width: 0%;
+            transition: width 0.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        /* Dashboard footer and metadata */
+        footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 1.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .refresh-tag {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+
+        .telegram-btn {
+            background: linear-gradient(135deg, #0088cc, #005580);
+            border: none;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .telegram-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 136, 204, 0.5);
+        }
+
+        .simulated-banner {
+            background: linear-gradient(90deg, #ff0055, #8a2be2);
+            color: white;
+            text-align: center;
+            padding: 0.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 15px rgba(255, 0, 85, 0.25);
+            display: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.6; box-shadow: 0 0 5px var(--success-glow); }
+            50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 20px var(--success); }
+            100% { transform: scale(1); opacity: 0.6; box-shadow: 0 0 5px var(--success-glow); }
+        }
+
+        @media (max-width: 600px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            footer {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: center;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Simulation Notice (shown if running offline without stats.json) -->
+        <div id="simBanner" class="simulated-banner">
+            ⚠️ RUNNING IN DEMO MODE (SIMULATING VALUES FOR PREVIEW)
+        </div>
+
+        <header>
+            <div class="logo-area">
+                <div class="logo-glow"></div>
+                <h1>EPITAPH KERNEL</h1>
+            </div>
+            <span class="device-badge">Redmi 12 · Helio G88</span>
+        </header>
+
+        <div class="grid">
+            <!-- CPU Frequency Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">CPU Frequencies</span>
+                    <span class="card-icon">⚡</span>
+                </div>
+                <div class="stat-value" id="cpuBigVal">0 <span class="stat-unit">MHz</span></div>
+                <div class="stat-desc">BIG Cluster Core Active Frequency</div>
+                <div class="cluster-area">
+                    <div class="cluster-bar-wrapper">
+                        <div class="cluster-header">
+                            <span>LITTLE Cluster (Cortex-A55)</span>
+                            <span id="littleFreqLabel">0 MHz</span>
+                        </div>
+                        <div class="cluster-bar-bg">
+                            <div class="cluster-bar-fill" id="littleBar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                    <div class="cluster-bar-wrapper">
+                        <div class="cluster-header">
+                            <span>BIG Cluster (Cortex-A75)</span>
+                            <span id="bigFreqLabel">0 MHz</span>
+                        </div>
+                        <div class="cluster-bar-bg">
+                            <div class="cluster-bar-fill" id="bigBar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Temperature Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Thermal Monitor</span>
+                    <span class="card-icon">🌡️</span>
+                </div>
+                <div class="stat-value" id="tempVal">0 <span class="stat-unit">°C</span></div>
+                <div class="stat-desc" style="margin-bottom: 1.2rem;">CPU Thermal Zone Temperature</div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <span>State:</span>
+                    <span class="badge" id="thermalStateBadge">WARM</span>
+                </div>
+            </div>
+
+            <!-- RAM Available Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Memory Allocation</span>
+                    <span class="card-icon">💾</span>
+                </div>
+                <div class="stat-value" id="ramVal">0 <span class="stat-unit">MB</span></div>
+                <div class="stat-desc" style="margin-bottom: 1.2rem;">Available RAM in System Cache</div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <span>Pressure:</span>
+                    <span class="badge" id="ramStateBadge">COMFORTABLE</span>
+                </div>
+            </div>
+
+            <!-- System Info & Active Profile Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">Tuner Configuration</span>
+                    <span class="card-icon">👑</span>
+                </div>
+                <div class="stat-value" id="profileVal" style="font-size: 2rem; color: #d1b3ff; text-transform: uppercase;">BALANCED</div>
+                <div class="stat-desc" style="margin-bottom: 1rem;">Active Epitaph Power Profile</div>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem;">
+                    <div>⏱️ <b>Uptime:</b> <span id="uptimeVal">0h 0m 0s</span></div>
+                    <div>📡 <b>WiFi Signal:</b> <span id="wifiVal">-50 dBm</span> <span class="badge" id="wifiBadge" style="padding: 0.15rem 0.5rem; font-size: 0.7rem;">EXCELLENT</span></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <div class="refresh-tag">
+                <div class="logo-glow" style="background-color: var(--primary); box-shadow: 0 0 10px var(--primary-glow);"></div>
+                <span>Auto-refreshing in 5s (Last updated: <span id="timeVal">-</span>)</span>
+            </div>
+            <a href="https://t.me/epitaph_kernel" target="_blank" class="telegram-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-send"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                Share in Telegram
+            </a>
+        </footer>
+    </div>
+
+    <script>
+        // Set to true to force simulation when testing locally
+        let isSimulated = false;
+
+        function updateUI(data) {
+            // Update CPU Clocks
+            document.getElementById('cpuBigVal').innerHTML = `${data.cpu.big_freq_mhz} <span class="stat-unit">MHz</span>`;
+            document.getElementById('littleFreqLabel').innerText = `${data.cpu.little_freq_mhz} MHz`;
+            document.getElementById('bigFreqLabel').innerText = `${data.cpu.big_freq_mhz} MHz`;
+            
+            // Map percentage based on max Helio G88 clocks
+            const littlePct = Math.min(100, Math.round((data.cpu.little_freq_mhz / 1800) * 100));
+            const bigPct = Math.min(100, Math.round((data.cpu.big_freq_mhz / 2000) * 100));
+            document.getElementById('littleBar').style.width = `${littlePct}%`;
+            document.getElementById('bigBar').style.width = `${bigPct}%`;
+
+            // Update Temperature
+            document.getElementById('tempVal').innerHTML = `${data.thermal.cpu_temp_c} <span class="stat-unit">°C</span>`;
+            const tState = data.thermal.state.toUpperCase();
+            const tBadge = document.getElementById('thermalStateBadge');
+            tBadge.innerText = tState;
+            if (tState === 'COOL') {
+                tBadge.className = 'badge badge-green';
+            } else if (tState === 'HOT') {
+                tBadge.className = 'badge badge-red';
+            } else {
+                tBadge.className = 'badge badge-yellow';
+            }
+
+            // Update RAM
+            const ramAvailable = data.memory.available_ram_mb;
+            document.getElementById('ramVal').innerHTML = `${ramAvailable} <span class="stat-unit">MB</span>`;
+            const rBadge = document.getElementById('ramStateBadge');
+            if (ramAvailable > 800) {
+                rBadge.innerText = 'COMFORTABLE';
+                rBadge.className = 'badge badge-green';
+            } else if (ramAvailable > 400) {
+                rBadge.innerText = 'MODERATE';
+                rBadge.className = 'badge badge-yellow';
+            } else {
+                rBadge.innerText = 'TIGHT';
+                rBadge.className = 'badge badge-red';
+            }
+
+            // Update Configuration
+            document.getElementById('profileVal').innerText = data.system.active_profile;
+            document.getElementById('uptimeVal').innerText = data.system.uptime;
+            
+            const wifiRssi = data.network.wifi_rssi_dbm;
+            document.getElementById('wifiVal').innerText = `${wifiRssi} dBm`;
+            const wBadge = document.getElementById('wifiBadge');
+            if (wifiRssi > -60) {
+                wBadge.innerText = 'EXCELLENT';
+                wBadge.className = 'badge badge-green';
+            } else if (wifiRssi > -80) {
+                wBadge.innerText = 'FAIR';
+                wBadge.className = 'badge badge-yellow';
+            } else {
+                wBadge.innerText = 'WEAK';
+                wBadge.className = 'badge badge-red';
+            }
+
+            // Time Val
+            document.getElementById('timeVal').innerText = data.system.timestamp;
+        }
+
+        // Simulasikan data realistik untuk keperluan demo web browser mandiri
+        function getSimulatedData() {
+            const profiles = ['balanced', 'performance', 'battery'];
+            const prof = profiles[Math.floor(Math.random() * profiles.length)];
+            
+            let little, big, temp, ram, tState;
+            
+            if (prof === 'performance') {
+                little = Math.floor(Math.random() * (1800 - 1100) + 1100);
+                big = Math.floor(Math.random() * (2000 - 1500) + 1500);
+                temp = Math.floor(Math.random() * (72 - 50) + 50);
+                ram = Math.floor(Math.random() * (900 - 320) + 320);
+            } else if (prof === 'battery') {
+                little = Math.floor(Math.random() * (1100 - 500) + 500);
+                big = Math.floor(Math.random() * (1380 - 900) + 900);
+                temp = Math.floor(Math.random() * (45 - 33) + 33);
+                ram = Math.floor(Math.random() * (1800 - 1100) + 1100);
+            } else {
+                little = Math.floor(Math.random() * (1500 - 800) + 800);
+                big = Math.floor(Math.random() * (1720 - 1150) + 1150);
+                temp = Math.floor(Math.random() * (56 - 38) + 38);
+                ram = Math.floor(Math.random() * (1200 - 650) + 650);
+            }
+
+            if (temp < 40) tState = 'COOL';
+            else if (temp > 55) tState = 'HOT';
+            else tState = 'WARM';
+
+            return {
+                cpu: { little_freq_mhz: little, big_freq_mhz: big },
+                thermal: { cpu_temp_c: temp, state: tState },
+                memory: { available_ram_mb: ram },
+                network: { wifi_rssi_dbm: Math.floor(Math.random() * (-45 - -85) + -85) },
+                system: {
+                    active_profile: prof.toUpperCase(),
+                    uptime: "2h 45m 12s",
+                    timestamp: new Date().toLocaleTimeString()
+                }
+            };
+        }
+
+        function fetchData() {
+            if (isSimulated) {
+                updateUI(getSimulatedData());
+                return;
+            }
+
+            fetch('stats.json')
+                .then(response => {
+                    if (!response.ok) throw new Error('Not found');
+                    return response.json();
+                })
+                .then(data => {
+                    updateUI(data);
+                })
+                .catch(error => {
+                    // Masuk ke mode simulasi preview jika stats.json tidak dapat dibaca lokal (CORS/Missing)
+                    isSimulated = true;
+                    document.getElementById('simBanner').style.display = 'block';
+                    updateUI(getSimulatedData());
+                });
+        }
+
+        // Jalankan fetch pertama kali dan pasang polling setiap 5 detik
+        fetchData();
+        setInterval(fetchData, 5000);
+    </script>
+</body>
+</html>
