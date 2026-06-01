@@ -37,14 +37,14 @@ config CPU_FREQ_GOV_EPITAPH
 	  Recommended as the default governor for everyday use.
 
 config CPU_FREQ_GOV_EPITAPH_PERF
-	bool "'epitaph_performance' cpufreq governor"
+	bool "'epitaph_perf' cpufreq governor"
 	select CPU_FREQ_GOV_ATTR_SET
 	help
 	  Epitaph performance governor. Aggressive ramp-up for gaming workloads.
 	  Near-instant frequency scaling with extended high-freq hold.
 
 config CPU_FREQ_GOV_EPITAPH_SAVE
-	bool "'epitaph_powersave' cpufreq governor"
+	bool "'epitaph_save' cpufreq governor"
 	select CPU_FREQ_GOV_ATTR_SET
 	help
 	  Epitaph powersave governor. Conservative scaling to maximize battery.

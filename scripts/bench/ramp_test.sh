@@ -88,6 +88,6 @@ LATENCY_SAVE=$(test_governor_ramp "powersave")
 
 echo -e "\n${CYAN}=== HASIL COMPARISON RAMP LATENCY ===${NC}"
 echo -e "  epitaph (balanced)      : ${YELLOW}${LATENCY_EPITAPH}ms${NC}"
-echo -e "  epitaph_performance     : ${YELLOW}${LATENCY_PERF}ms${NC}"
-echo -e "  epitaph_powersave       : ${YELLOW}${LATENCY_SAVE}ms${NC}"
+echo -e "  epitaph_perf            : ${YELLOW}${LATENCY_PERF}ms${NC}"
+echo -e "  epitaph_save            : ${YELLOW}${LATENCY_SAVE}ms${NC}"
 echo -e "======================================"

@@ -17,10 +17,10 @@ log_gov() {
 # Translate user argument to exact kernel governor name
 case "$GOV_ARG" in
   performance)
-    TARGET_GOV="epitaph_performance"
+    TARGET_GOV="epitaph_perf"
     ;;
   powersave)
-    TARGET_GOV="epitaph_powersave"
+    TARGET_GOV="epitaph_save"
     ;;
   epitaph|balanced|*)
     TARGET_GOV="epitaph"
@@ -49,17 +49,17 @@ for policy in /sys/devices/system/cpu/cpufreq/policy*; do
   [ ! -d "$policy" ] && continue
   p_num="${policy##*policy}"
   
-  # Detect whether we are modifying cpufreq/epitaph or cpufreq/schedutil directory
+  # Detect the correct tunable directory (either current governor name or fallback to schedutil)
   GOV_DIR=""
-  if [ -d "$policy/epitaph" ]; then
-    GOV_DIR="$policy/epitaph"
+  if [ -d "$policy/$TARGET_GOV" ]; then
+    GOV_DIR="$policy/$TARGET_GOV"
   elif [ -d "$policy/schedutil" ]; then
     GOV_DIR="$policy/schedutil"
   fi
   
   if [ -n "$GOV_DIR" ]; then
     case "$TARGET_GOV" in
-      epitaph_performance)
+      epitaph_perf)
         # Aggressive performance values
         if [ "$p_num" -eq 6 ]; then
           echo 1800000 > "$GOV_DIR/hispeed_freq" 2>/dev/null  # 1.8GHz Big Core floor
@@ -69,7 +69,7 @@ for policy in /sys/devices/system/cpu/cpufreq/policy*; do
           echo 70 > "$GOV_DIR/hispeed_load" 2>/dev/null
         fi
         ;;
-      epitaph_powersave)
+      epitaph_save)
         # Highly conservative powersaving values
         if [ "$p_num" -eq 6 ]; then
           echo 1150000 > "$GOV_DIR/hispeed_freq" 2>/dev/null

@@ -35,11 +35,11 @@ AV_GOVS=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_available_governor
 echo "$AV_GOVS" | grep -q "epitaph"
 assert_test "Governor 'epitaph' (balanced) terdeteksi" $?
 
-echo "$AV_GOVS" | grep -q "epitaph_performance"
-assert_test "Governor 'epitaph_performance' terdeteksi" $?
+echo "$AV_GOVS" | grep -q "epitaph_perf"
+assert_test "Governor 'epitaph_perf' terdeteksi" $?
 
-echo "$AV_GOVS" | grep -q "epitaph_powersave"
-assert_test "Governor 'epitaph_powersave' terdeteksi" $?
+echo "$AV_GOVS" | grep -q "epitaph_save"
+assert_test "Governor 'epitaph_save' terdeteksi" $?
 
 # 2. Pengecekan sysfs tunables governor
 echo -e "\n${YELLOW}Langkah 2: Memeriksa Sysfs Tunables...${NC}"

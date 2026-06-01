@@ -77,10 +77,10 @@ log_gov() {
 # Translate user argument to exact kernel governor name
 case "$GOV_ARG" in
   performance)
-    TARGET_GOV="epitaph_performance"
+    TARGET_GOV="epitaph_perf"
     ;;
   powersave)
-    TARGET_GOV="epitaph_powersave"
+    TARGET_GOV="epitaph_save"
     ;;
   epitaph|balanced|*)
     TARGET_GOV="epitaph"
@@ -109,15 +109,15 @@ for policy in /sys/devices/system/cpu/cpufreq/policy*; do
   p_num="${policy##*policy}"
   
   GOV_DIR=""
-  if [ -d "$policy/epitaph" ]; then
-    GOV_DIR="$policy/epitaph"
+  if [ -d "$policy/$TARGET_GOV" ]; then
+    GOV_DIR="$policy/$TARGET_GOV"
   elif [ -d "$policy/schedutil" ]; then
     GOV_DIR="$policy/schedutil"
   fi
   
   if [ -n "$GOV_DIR" ]; then
     case "$TARGET_GOV" in
-      epitaph_performance)
+      epitaph_perf)
         # Aggressive performance values
         if [ "$p_num" -eq 6 ] || [ "$p_num" -eq 4 ]; then
           echo 1800000 > "$GOV_DIR/hispeed_freq" 2>/dev/null  # 1.8GHz Big Core floor
@@ -127,7 +127,7 @@ for policy in /sys/devices/system/cpu/cpufreq/policy*; do
           echo 70 > "$GOV_DIR/hispeed_load" 2>/dev/null
         fi
         ;;
-      epitaph_powersave)
+      epitaph_save)
         # Highly conservative powersaving values
         if [ "$p_num" -eq 6 ] || [ "$p_num" -eq 4 ]; then
           echo 1150000 > "$GOV_DIR/hispeed_freq" 2>/dev/null
@@ -205,11 +205,11 @@ AV_GOVS=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_available_governor
 echo "$AV_GOVS" | grep -q "epitaph"
 assert_test "Governor 'epitaph' (balanced) terdeteksi" $?
 
-echo "$AV_GOVS" | grep -q "epitaph_performance"
-assert_test "Governor 'epitaph_performance' terdeteksi" $?
+echo "$AV_GOVS" | grep -q "epitaph_perf"
+assert_test "Governor 'epitaph_perf' terdeteksi" $?
 
-echo "$AV_GOVS" | grep -q "epitaph_powersave"
-assert_test "Governor 'epitaph_powersave' terdeteksi" $?
+echo "$AV_GOVS" | grep -q "epitaph_save"
+assert_test "Governor 'epitaph_save' terdeteksi" $?
 
 echo -e "\n${YELLOW}Langkah 2: Memeriksa Sysfs Tunables...${NC}"
 sh /data/epitaph/set_governor.sh epitaph >/dev/null 2>&1
@@ -358,8 +358,8 @@ LATENCY_SAVE=$(test_governor_ramp "powersave")
 
 echo -e "\n${CYAN}=== HASIL COMPARISON RAMP LATENCY ===${NC}"
 echo -e "  epitaph (balanced)      : ${YELLOW}${LATENCY_EPITAPH}ms${NC}"
-echo -e "  epitaph_performance     : ${YELLOW}${LATENCY_PERF}ms${NC}"
-echo -e "  epitaph_powersave       : ${YELLOW}${LATENCY_SAVE}ms${NC}"
+echo -e "  epitaph_perf            : ${YELLOW}${LATENCY_PERF}ms${NC}"
+echo -e "  epitaph_save            : ${YELLOW}${LATENCY_SAVE}ms${NC}"
 echo -e "======================================"
 EOF
 
@@ -449,7 +449,7 @@ DRAIN_SAVE=${RES_SAVE##*:}
 echo -e "\n${CYAN}=== RINGKASAN EFISIENSI DAYA ===${NC}"
 echo -e "  powersave (hemat daya)  : ${GREEN}${CUR_SAVE}mA${NC} (Delta %: -${DRAIN_SAVE}%)"
 echo -e "  epitaph (balanced)      : ${GREEN}${CUR_EPITAPH}mA${NC} (Delta %: -${DRAIN_EPITAPH}%)"
-echo -e "  epitaph_performance     : ${GREEN}${CUR_PERF}mA${NC} (Delta %: -${DRAIN_PERF}%)"
+echo -e "  epitaph_perf            : ${GREEN}${CUR_PERF}mA${NC} (Delta %: -${DRAIN_PERF}%)"
 echo -e "================================"
 EOF
 

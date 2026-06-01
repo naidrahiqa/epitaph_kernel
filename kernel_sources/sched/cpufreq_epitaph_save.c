@@ -14,7 +14,7 @@
  */
 
 #define GOV_PREFIX           episave
-#define GOV_NAME             "epitaph_powersave"
+#define GOV_NAME             "epitaph_save"
 #define DEFAULT_UP_RATE      2000
 #define DEFAULT_DOWN_RATE    5000
 #define DEFAULT_HISPEED_LOAD 95

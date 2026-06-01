@@ -89,5 +89,5 @@ DRAIN_SAVE=${RES_SAVE##*:}
 echo -e "\n${CYAN}=== RINGKASAN EFISIENSI DAYA ===${NC}"
 echo -e "  powersave (hemat daya)  : ${GREEN}${CUR_SAVE}mA${NC} (Delta %: -${DRAIN_SAVE}%)"
 echo -e "  epitaph (balanced)      : ${GREEN}${CUR_EPITAPH}mA${NC} (Delta %: -${DRAIN_EPITAPH}%)"
-echo -e "  epitaph_performance     : ${GREEN}${CUR_PERF}mA${NC} (Delta %: -${DRAIN_PERF}%)"
+echo -e "  epitaph_perf            : ${GREEN}${CUR_PERF}mA${NC} (Delta %: -${DRAIN_PERF}%)"
 echo -e "================================"

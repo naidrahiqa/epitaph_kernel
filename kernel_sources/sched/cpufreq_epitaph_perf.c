@@ -14,7 +14,7 @@
  */
 
 #define GOV_PREFIX           epiperf
-#define GOV_NAME             "epitaph_performance"
+#define GOV_NAME             "epitaph_perf"
 #define DEFAULT_UP_RATE      100
 #define DEFAULT_DOWN_RATE    50000
 #define DEFAULT_HISPEED_LOAD 70
