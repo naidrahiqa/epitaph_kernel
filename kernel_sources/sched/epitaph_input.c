@@ -18,6 +18,7 @@
 #include <linux/tracepoint.h>
 #include <linux/workqueue.h>
 #include <linux/thermal.h>
+#include <linux/sched/cputime.h>
 #include <trace/events/sched.h>
 
 #include "sched.h"
