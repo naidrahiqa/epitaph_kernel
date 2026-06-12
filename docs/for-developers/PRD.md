@@ -82,12 +82,9 @@ Trigger: workflow_dispatch (manual)
 ### Toolchain Matrix
 
 | Toolchain | Build System | Status | Notes |
-|---|---|---|---|
+|---|---|---|---|---|
 | `bazel-default` | Bazel/Kleaf | ✅ **Production** | The only officially production-tested system |
-| `aosp-latest` | make | ⚠️ Experimental | crdroidandroid prebuilt Clang |
-| `zyc-latest` | make | ⚠️ Experimental | ZyClang toolchain |
-| `weebx-latest` | make | ⚠️ Experimental | WeebX Clang toolchain |
-| `neutron-latest` | make | ⚠️ Experimental | Neutron Clang toolchain |
+| `zyc-latest` | make | ✅ **Supported** | ZyClang toolchain |
 
 ---
 

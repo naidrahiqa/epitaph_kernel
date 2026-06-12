@@ -12,7 +12,7 @@
 #   $3 = KERNEL_VERSION   e.g. "6.6"
 #   $4 = GITHUB_WORKSPACE path to workspace root
 #   $5 = GITHUB_ENV       path to GITHUB_ENV file
-#   $6 = CLANG_TOOLCHAIN  e.g. "bazel-default", "zyc-latest" (core only, ignored by rescue)
+#   $6 = CLANG_TOOLCHAIN  e.g. "bazel-default" or "zyc-latest" (core only, ignored by rescue)
 #   $7 = KSU_METHOD       e.g. "kernelsu-next"
 #   $8 = WITH_SUSFS       "true" | "false" (core only, ignored by rescue)
 # ==============================================================================
@@ -176,53 +176,11 @@ download_toolchain() {
       echo "CUSTOM_CLANG_PATH=$CLANG_PATH" >> "$GITHUB_ENV"
       echo "TOOLCHAIN_NAME=ZyClang" >> "$GITHUB_ENV"
       ;;
-    aosp-latest)
-      echo "📥 Mengunduh AOSP Clang (r530567)..."
-      retry_cmd aria2c -x16 -s16 -k1M --retry-wait=5 --max-tries=10 -o clang.tar.gz "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r530567.tar.gz"
-      smart_extract clang.tar.gz clang-aosp
-      CLANG_PATH="$GITHUB_WORKSPACE/prebuilts/clang/host/linux-x86/clang-aosp"
-      echo "CUSTOM_CLANG_PATH=$CLANG_PATH" >> "$GITHUB_ENV"
-      echo "TOOLCHAIN_NAME=AOSPClang" >> "$GITHUB_ENV"
-      ;;
-    weebx-latest)
-      echo "📥 Mengunduh WeebX-Clang..."
-      WEEBX_URL=$(retry_cmd fetch_release_asset "XSans0/WeebX-Clang" "WeebX-Clang")
-      if [ -z "$WEEBX_URL" ]; then
-        {
-          echo "❌ ERROR: Gagal mendapatkan URL WeebX-Clang!"
-          echo "📋 Detail: Permintaan API GitHub mengembalikan URL aset kosong."
-          echo "🔧 Saran perbaikan: Periksa konektivitas jaringan atau batas tingkat API."
-        } > "$GITHUB_WORKSPACE/kernel/build.log"
-        exit 1
-      fi
-      retry_cmd aria2c -x16 -s16 -k1M --retry-wait=5 --max-tries=10 -o clang.tar.gz "$WEEBX_URL"
-      smart_extract clang.tar.gz clang-weebx
-      CLANG_PATH="$GITHUB_WORKSPACE/prebuilts/clang/host/linux-x86/clang-weebx"
-      echo "CUSTOM_CLANG_PATH=$CLANG_PATH" >> "$GITHUB_ENV"
-      echo "TOOLCHAIN_NAME=WeebXClang" >> "$GITHUB_ENV"
-      ;;
-    neutron-latest)
-      echo "📥 Mengunduh NeutronClang..."
-      NEUTRON_ASSET=$(retry_cmd fetch_release_asset "Neutron-Toolchains/clang-build-catalogue" "neutron-clang")
-      if [ -z "$NEUTRON_ASSET" ]; then
-        {
-          echo "❌ ERROR: Gagal mendapatkan URL NeutronClang!"
-          echo "📋 Detail: Permintaan API GitHub mengembalikan URL aset kosong."
-          echo "🔧 Saran perbaikan: Periksa konektivitas jaringan atau batas tingkat API."
-        } > "$GITHUB_WORKSPACE/kernel/build.log"
-        exit 1
-      fi
-      retry_cmd aria2c -x16 -s16 -k1M --retry-wait=5 --max-tries=10 -o clang.tar.gz "$NEUTRON_ASSET"
-      smart_extract clang.tar.gz clang-neutron
-      CLANG_PATH="$GITHUB_WORKSPACE/prebuilts/clang/host/linux-x86/clang-neutron"
-      echo "CUSTOM_CLANG_PATH=$CLANG_PATH" >> "$GITHUB_ENV"
-      echo "TOOLCHAIN_NAME=NeutronClang" >> "$GITHUB_ENV"
-      ;;
     *)
       {
         echo "❌ ERROR: Toolchain tidak dikenal: $CLANG_TOOLCHAIN!"
         echo "📋 Detail: Clang toolchain '$CLANG_TOOLCHAIN' tidak didukung."
-        echo "🔧 Saran perbaikan: Pilih kompiler yang valid (bazel-default, zyc-latest, aosp-latest, weebx-latest, neutron-latest)."
+          echo "🔧 Saran perbaikan: Pilih kompiler yang valid (bazel-default, zyc-latest)."
       } > "$GITHUB_WORKSPACE/kernel/build.log"
       exit 1
       ;;

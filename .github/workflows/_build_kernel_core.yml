@@ -105,12 +105,6 @@ jobs:
             TC_NAME="Bazel"
           elif [ "$TC_NAME" = "zyc-latest" ]; then
             TC_NAME="ZyClang"
-          elif [ "$TC_NAME" = "aosp-latest" ]; then
-            TC_NAME="AOSPClang"
-          elif [ "$TC_NAME" = "weebx-latest" ]; then
-            TC_NAME="WeebXClang"
-          elif [ "$TC_NAME" = "neutron-latest" ]; then
-            TC_NAME="NeutronClang"
           fi
           echo "TOOLCHAIN_NAME=${TC_NAME}" >> $GITHUB_ENV
           

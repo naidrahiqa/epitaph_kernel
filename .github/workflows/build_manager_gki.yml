@@ -27,10 +27,7 @@ on:
         default: "bazel-default"
         options:
           - "bazel-default"
-          - "aosp-latest"
           - "zyc-latest"
-          - "weebx-latest"
-          - "neutron-latest"
           - "all"
 
 permissions:
@@ -85,7 +82,7 @@ jobs:
           # Kumpulkan compiler (toolchain) berdasarkan choice dropdown yang dipilih oleh user
           selected_tc = "${{ inputs.toolchain }}"
           if selected_tc == "all":
-              toolchains = ["bazel-default", "aosp-latest", "zyc-latest", "weebx-latest", "neutron-latest"]
+              toolchains = ["bazel-default", "zyc-latest"]
           else:
               toolchains = [selected_tc]
 

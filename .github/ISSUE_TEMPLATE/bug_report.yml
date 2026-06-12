@@ -23,10 +23,7 @@ body:
       label: Toolchain
       options:
         - bazel-default
-        - aosp-latest
         - zyc-latest
-        - weebx-latest
-        - neutron-latest
     validations:
       required: true
 
