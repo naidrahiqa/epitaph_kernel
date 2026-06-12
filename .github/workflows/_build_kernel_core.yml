@@ -697,14 +697,14 @@ jobs:
 
           # KONFIGURASI BAZEL & KESTABILAN:
           # 1. Gunakan flag --local_resources=memory=6144. Flag --local_ram_resources sudah deprecated pada versi Bazel di Kleaf GKI 6.6 ini.
-          # 2. Setel --lto=none demi keamanan dan mencegah kehabisan memori (OOM) pada mesin runner GitHub Actions yang berkapasitas 7GB.
+          # 2. Setel --lto=thin untuk mengaktifkan Link-Time Optimization (ThinLTO) yang terbukti stabil di GKI 6.6 dengan RAM 6GB.
           # 3. Lakukan pengulangan kompilasi sampai 3 kali jika terjadi kegagalan akibat kendala jaringan saat mengunduh dependensi remote.
           BUILD_OK=false
           for attempt in 1 2 3; do
             echo "Bazel build attempt $attempt/3..."
             if tools/bazel run \
               --disk_cache=/home/runner/.cache/bazel \
-              --lto=none \
+              --lto=thin \
               --local_resources=memory=6144 \
               --jobs=2 \
               --noshow_progress \
