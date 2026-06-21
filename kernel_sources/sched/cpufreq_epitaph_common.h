@@ -26,13 +26,6 @@
 #include <linux/sched/signal.h>
 #include <linux/sched/cputime.h>
 
-/*
- * Forward declaration for kernels where this was removed from GKI 6.6
- * (called from static inline in kernel/sched/sched.h)
- */
-static inline void account_group_exec_runtime(struct task_struct *tsk,
-					      unsigned long long ns) { }
-
 #include "sched.h"
 #include "epitaph_input.h"
 
